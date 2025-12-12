@@ -1,0 +1,5 @@
+{
+  "name": "Ahava Choir Management",
+  "description": "A web application for managing choir members, events, and tasks, inspired by the Choir Concierge UI. This provides a centralized dashboard for all choir-related activities.",
+  "requestFramePermissions": []
+}

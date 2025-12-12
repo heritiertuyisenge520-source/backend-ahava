@@ -1,0 +1,586 @@
+
+
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import type { User, Event, PermissionRequest, AttendanceStatus } from '../types';
+import { Header } from './Header';
+import { ChartBarIcon, SongsIcon, BuildingIcon, PaperAirplaneIcon, CheckCircleIcon, DownloadIcon } from './Icons';
+import { PermissionRequestModal } from './PermissionRequestModal';
+
+// --- Types ---
+type EventType = 'Practice' | 'Service' | 'None';
+interface AttendanceData {
+    day: number;
+    status: AttendanceStatus;
+    eventType: EventType;
+}
+
+const currentYear = new Date().getFullYear();
+
+// --- Main Component ---
+interface AttendanceProps {
+    user: User | null;
+    singers: User[];
+    onNewPermissionRequest: (request: PermissionRequest) => void;
+    events: Event[];
+    attendanceRecords: Record<string, Record<string, AttendanceStatus>>;
+    onSaveAttendance: (eventId: string, records: Record<string, AttendanceStatus>) => void;
+    onMenuClick?: () => void;
+}
+
+export const Attendance = ({ user, singers, onNewPermissionRequest, events, attendanceRecords, onSaveAttendance, onMenuClick }: AttendanceProps) => {
+    if (!user) return <div className="p-8">Loading attendance data...</div>;
+
+    const canManageAttendance = user.role === 'Advisor' || user.role === 'President';
+
+    if (canManageAttendance) {
+        const membersForAttendance = singers;
+        return <AdvisorAttendanceView 
+                    members={membersForAttendance} 
+                    events={events}
+                    attendanceRecords={attendanceRecords}
+                    onSave={onSaveAttendance}
+                    onMenuClick={onMenuClick}
+                />;
+    }
+    
+    return <SingerAttendanceView 
+                user={user} 
+                onNewPermissionRequest={onNewPermissionRequest} 
+                events={events}
+                attendanceRecords={attendanceRecords}
+                onMenuClick={onMenuClick}
+            />;
+};
+
+
+// --- Advisor/President View ---
+const getInitials = (name: string) => {
+    const names = name.split(' ');
+    return `${names[0]?.[0] || ''}${names.length > 1 ? names[names.length - 1]?.[0] || '' : ''}`.toUpperCase();
+};
+
+
+interface StatusSummaryModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    members: User[];
+}
+
+const StatusSummaryModal = ({ isOpen, onClose, title, members }: StatusSummaryModalProps) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleEsc = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [onClose]);
+
+    const handleClickOutside = (event: React.MouseEvent) => {
+        if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+            onClose();
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"
+            onClick={handleClickOutside}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="summary-modal-title"
+        >
+            <div ref={modalRef} className="bg-ahava-surface rounded-lg shadow-xl p-6 w-full max-w-md border border-ahava-purple-medium">
+                <div className="flex justify-between items-start mb-4">
+                    <h2 id="summary-modal-title" className="text-xl font-bold text-gray-100">{title}</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl font-bold leading-none" aria-label="Close modal">&times;</button>
+                </div>
+                <div className="max-h-96 overflow-y-auto pr-2">
+                    {members.length > 0 ? (
+                        <ul className="space-y-3">
+                            {members.map(member => (
+                                <li key={member.id} className="flex items-center p-2 bg-ahava-background rounded-md">
+                                    {member.profilePictureUrl ? (
+                                        <img src={member.profilePictureUrl} alt={member.name} className="w-10 h-10 rounded-full object-cover mr-3" />
+                                    ) : (
+                                        <div className="w-10 h-10 bg-indigo-200 flex items-center justify-center rounded-full mr-3">
+                                            <span className="font-bold text-indigo-800">{getInitials(member.name)}</span>
+                                        </div>
+                                    )}
+                                    <span className="font-medium text-gray-200">{member.name}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-center text-gray-400 py-8">No members with this status.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+interface SingerAttendanceRowProps {
+    singer: User;
+    status: AttendanceStatus;
+    onStatusChange: (singerId: string, newStatus: AttendanceStatus) => void;
+}
+
+const SingerAttendanceRow: React.FC<SingerAttendanceRowProps> = ({ singer, status, onStatusChange }) => {
+    const placeholderAvatar = `https://ui-avatars.com/api/?name=${singer.name.replace(' ', '+')}&background=c7d2fe&color=3730a3&size=96`;
+    const avatarSrc = singer.profilePictureUrl || placeholderAvatar;
+
+    const statusOptions: AttendanceStatus[] = ['Present', 'Absent', 'Excused'];
+    const statusClasses = {
+        'Present': 'bg-ahava-purple-dark text-white',
+        'Absent': 'bg-red-500 text-white',
+        'Excused': 'bg-ahava-magenta text-white',
+        'default': 'bg-ahava-purple-medium text-gray-200 hover:bg-ahava-purple-light',
+    };
+
+    return (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-ahava-background rounded-lg transition-colors hover:bg-ahava-purple-dark/40 gap-3 sm:gap-0">
+            <div className="flex items-center space-x-4 w-full sm:w-auto">
+                 {singer.profilePictureUrl ? (
+                    <img src={avatarSrc} alt={singer.name} className="w-10 h-10 rounded-full object-cover" />
+                 ) : (
+                    <div className="w-10 h-10 bg-indigo-200 flex items-center justify-center rounded-full">
+                        <span className="font-bold text-indigo-800">{getInitials(singer.name)}</span>
+                    </div>
+                 )}
+                <div>
+                    <p className="font-medium text-gray-100">{singer.name}</p>
+                    <p className="text-sm text-gray-400">{singer.role}</p>
+                </div>
+            </div>
+            <div className="flex space-x-2 w-full sm:w-auto justify-end sm:justify-start">
+                {statusOptions.map(option => (
+                    <button
+                        key={option}
+                        onClick={() => onStatusChange(singer.id, option)}
+                        className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
+                            status === option ? statusClasses[option] : statusClasses['default']
+                        }`}
+                    >
+                        {option}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+interface AdvisorAttendanceViewProps {
+    members: User[];
+    events: Event[];
+    attendanceRecords: Record<string, Record<string, AttendanceStatus>>;
+    onSave: (eventId: string, records: Record<string, AttendanceStatus>) => void;
+    onMenuClick?: () => void;
+}
+
+const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onMenuClick }: AdvisorAttendanceViewProps) => {
+    const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
+    const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalData, setModalData] = useState<{title: string; members: User[]}>({title: '', members: []});
+
+    const selectableEvents = useMemo(() => {
+        const now = new Date();
+        return events
+            .filter(event => new Date(`${event.date}T${event.startTime}`) <= now)
+            .sort((a, b) => {
+                const dateA = new Date(`${a.date}T${a.startTime}`);
+                const dateB = new Date(`${b.date}T${b.startTime}`);
+                return dateB.getTime() - dateA.getTime();
+            });
+    }, [events]);
+
+    const selectedEvent = useMemo(() => {
+        if (!selectedEventId) return null;
+        return events.find(e => e.id === selectedEventId) || null;
+    }, [selectedEventId, events]);
+
+    const summary = useMemo(() => {
+        const counts: Record<Extract<AttendanceStatus, 'Present'|'Absent'|'Excused'>, number> = { Present: 0, Absent: 0, Excused: 0 };
+        for (const status of Object.values(attendance)) {
+            if (status === 'Present' || status === 'Absent' || status === 'Excused') {
+                counts[status]++;
+            }
+        }
+        return counts;
+    }, [attendance]);
+
+    useEffect(() => {
+        if (!selectedEventId) {
+            setAttendance({});
+            return;
+        };
+        const initialAttendance: Record<string, AttendanceStatus> = {};
+        members.forEach(member => {
+            initialAttendance[member.id] = attendanceRecords[selectedEventId]?.[member.id] || 'Absent';
+        });
+        setAttendance(initialAttendance);
+    }, [selectedEventId, members, attendanceRecords]);
+
+    const handleOpenModal = (status: 'Present' | 'Absent' | 'Excused') => {
+        const filteredMembers = members.filter(m => attendance[m.id] === status).sort((a,b) => a.name.localeCompare(b.name));
+        setModalData({
+            title: `Members Marked as ${status}`,
+            members: filteredMembers,
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleStatusChange = (memberId: string, newStatus: AttendanceStatus) => {
+        setAttendance(prev => ({ ...prev, [memberId]: newStatus }));
+    };
+
+    const handleSave = () => {
+        if (!selectedEventId) return;
+        onSave(selectedEventId, attendance);
+        setShowSaveConfirmation(true);
+        setTimeout(() => setShowSaveConfirmation(false), 3000);
+    };
+
+    return (
+         <div className="bg-ahava-background min-h-full">
+            <Header
+                breadcrumbs={['Dashboard']}
+                title="Take Attendance"
+                titleIcon={<ChartBarIcon className="h-6 w-6" />}
+                onMenuClick={onMenuClick}
+            />
+            <div className="p-4 md:p-8">
+                <div className="bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark">
+                    <div>
+                        <label htmlFor="event-select" className="block text-lg font-medium text-gray-100 mb-2">Select an Event</label>
+                        <p className="text-sm text-gray-400 mb-4">Choose a past or ongoing event to take or view attendance.</p>
+                        <select
+                            id="event-select"
+                            value={selectedEventId || ''}
+                            onChange={(e) => setSelectedEventId(e.target.value)}
+                            className="mt-1 block w-full px-3 py-2 bg-ahava-purple-dark border border-ahava-purple-medium rounded-md shadow-sm text-gray-200 focus:outline-none focus:ring-ahava-magenta focus:border-ahava-magenta"
+                        >
+                            <option value="" disabled>Select an event...</option>
+                            {selectableEvents.map(event => (
+                                <option key={event.id} value={event.id}>
+                                    {event.name} - {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {selectedEventId && selectedEvent ? (
+                    <div className="mt-8 bg-ahava-surface p-6 rounded-lg shadow-md animate-fadeInUp border border-ahava-purple-dark">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-100">{selectedEvent.name}</h3>
+                                <p className="text-sm text-gray-400">{new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            </div>
+                             <button onClick={handleSave} className="bg-ahava-purple-dark text-white font-semibold py-2 px-6 rounded-lg hover:bg-ahava-purple-medium transition-colors w-full sm:w-auto">Save Attendance</button>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                            {(['Present', 'Absent', 'Excused'] as const).map(status => {
+                                const colors = { Present: { bg: 'bg-green-900/40', border: 'border-green-700', hover: 'hover:bg-green-900/60', text: 'text-green-300', value: 'text-green-200' }, 
+                                                 Absent: { bg: 'bg-red-900/40', border: 'border-red-700', hover: 'hover:bg-red-900/60', text: 'text-red-300', value: 'text-red-200' }, 
+                                                 Excused: { bg: 'bg-purple-900/40', border: 'border-purple-700', hover: 'hover:bg-purple-900/60', text: 'text-purple-300', value: 'text-purple-200' } };
+                                const color = colors[status];
+                                return (
+                                    <button 
+                                        key={status}
+                                        onClick={() => handleOpenModal(status)}
+                                        className={`p-4 rounded-lg text-center ${color.bg} border ${color.border} ${color.hover} transition-colors`}
+                                    >
+                                        <p className={`text-xs ${color.text} uppercase font-semibold`}>{status}</p>
+                                        <p className={`font-bold text-3xl ${color.value}`}>{summary[status]}</p>
+                                    </button>
+                                );
+                            })}
+                             <div className="p-4 rounded-lg text-center bg-ahava-background border border-ahava-purple-dark">
+                                <p className="text-xs text-gray-400 uppercase font-semibold">Total</p>
+                                <p className="font-bold text-3xl text-gray-200">{members.length}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="border-t border-ahava-purple-medium pt-6 space-y-3">
+                            <h4 className="text-lg font-semibold text-gray-200 mb-2">Choir Roster</h4>
+                            {members.map(member => (
+                                <SingerAttendanceRow key={member.id} singer={member} status={attendance[member.id] || 'Absent'} onStatusChange={handleStatusChange} />
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mt-8 bg-ahava-surface p-6 rounded-lg shadow-md flex flex-col items-center justify-center h-64 text-center text-gray-400 border border-ahava-purple-dark">
+                        <ChartBarIcon className="w-16 h-16 text-ahava-purple-dark mb-4" />
+                        <h3 className="text-xl font-semibold text-gray-200">Ready to take attendance?</h3>
+                        <p className="max-w-xs mt-2">Please select an event from the dropdown above to begin.</p>
+                    </div>
+                )}
+            </div>
+            {showSaveConfirmation && (
+                <div className="fixed bottom-8 right-8 bg-green-600 text-white py-3 px-6 rounded-lg shadow-xl flex items-center animate-fadeInUp z-50 border border-green-400">
+                    <CheckCircleIcon className="w-6 h-6 mr-3" />
+                    <span className="font-semibold">Attendance saved successfully!</span>
+                </div>
+            )}
+            <StatusSummaryModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={modalData.title}
+                members={modalData.members}
+            />
+        </div>
+    );
+};
+
+
+// --- Singer View Components ---
+const AttendancePieChart = ({ summary }: { summary: Record<AttendanceStatus, number> }) => {
+    const total = summary.Present + summary.Absent + summary.Excused;
+    
+    if (total === 0) {
+        return (
+             <div className="relative flex items-center justify-center w-48 h-48 mx-auto">
+                <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                    <circle cx="50" cy="50" r="40" strokeWidth="20" stroke="currentColor" className="text-ahava-purple-dark" fill="transparent" />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center">
+                    <span className="text-xl font-bold text-gray-400">N/A</span>
+                    <span className="text-sm text-gray-500">No Data</span>
+                </div>
+            </div>
+        )
+    }
+
+    const present = summary.Present || 0;
+    const excused = summary.Excused || 0;
+
+    const presentPercentage = (present / total) * 100;
+    const excusedPercentage = (excused / total) * 100;
+
+    const radius = 40;
+    const circumference = 2 * Math.PI * radius;
+
+    const presentLength = (presentPercentage / 100) * circumference;
+    const excusedLength = ((excusedPercentage) / 100) * circumference;
+
+    return (
+        <div className="relative flex items-center justify-center w-48 h-48 mx-auto">
+            <svg viewBox="0 0 100" className="transform -rotate-90">
+                <circle cx="50" cy="50" r={radius} strokeWidth="20" stroke="currentColor" className="text-ahava-purple-dark" fill="transparent" />
+                
+                <circle cx="50" cy="50" r={radius} strokeWidth="20" stroke="currentColor" className="text-red-500/50" fill="transparent" strokeDasharray={`${circumference} ${circumference}`} />
+                {excusedLength > 0 && <circle cx="50" cy="50" r={radius} strokeWidth="20" stroke="currentColor" className="text-ahava-purple-light" fill="transparent" strokeDasharray={`${excusedLength + presentLength} ${circumference}`} />}
+                {presentLength > 0 && <circle cx="50" cy="50" r={radius} strokeWidth="20" stroke="currentColor" className="text-ahava-purple-medium" fill="transparent" strokeDasharray={`${presentLength} ${circumference}`} />}
+            </svg>
+            <div className="absolute flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-gray-100">{presentPercentage.toFixed(0)}%</span>
+                <span className="text-sm text-gray-400">Present</span>
+            </div>
+        </div>
+    );
+};
+
+const StatCard = ({ title, value, color, percentage }: { title: string, value: number, color: string, percentage: number }) => (
+    <div className="bg-ahava-background p-4 rounded-lg flex items-center border border-ahava-purple-dark">
+        <div className={`w-3 h-12 rounded-full ${color} mr-4`}></div>
+        <div>
+            <p className="text-sm text-gray-400">{title}</p>
+            <div className="flex items-baseline space-x-2">
+                <p className="text-2xl font-bold text-gray-100">{value} days</p>
+                {percentage > -1 && (
+                     <p className="text-base font-semibold text-gray-400">({percentage.toFixed(0)}%)</p>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+const MonthSelector = ({ selectedDate, onDateChange }: { selectedDate: Date, onDateChange: (date: Date) => void }) => {
+    const months = [{ name: 'September', value: 8 }, { name: 'October', value: 9 }];
+    return (
+        <div className="flex space-x-2">
+            {months.map(month => (
+                <button
+                    key={month.value}
+                    onClick={() => onDateChange(new Date(currentYear, month.value))}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        selectedDate.getMonth() === month.value
+                            ? 'bg-ahava-purple-dark text-white'
+                            : 'bg-ahava-purple-medium text-gray-300 hover:bg-ahava-purple-light'
+                    }`}
+                >
+                    {month.name}
+                </button>
+            ))}
+        </div>
+    );
+};
+
+const CalendarDay: React.FC<{ dayData: AttendanceData }> = ({ dayData }) => {
+    const statusClasses: Record<AttendanceStatus, string> = {
+        'Present': 'bg-ahava-purple-medium text-white',
+        'Absent': 'bg-red-500/80 text-white',
+        'Excused': 'bg-ahava-magenta text-white',
+        'No Event': 'bg-ahava-background text-gray-500',
+    };
+    
+    const icon: Record<EventType, React.ReactNode> = {
+        'Practice': <SongsIcon className="h-4 w-4" />,
+        'Service': <BuildingIcon className="h-4 w-4" />,
+        'None': null,
+    };
+
+    return (
+        <div className={`aspect-square flex flex-col items-center justify-center rounded-lg p-2 ${statusClasses[dayData.status]}`}>
+            <span className="font-bold text-lg">{dayData.day}</span>
+            <div className="mt-1 h-4">
+                {dayData.eventType !== 'None' && icon[dayData.eventType]}
+            </div>
+        </div>
+    );
+};
+
+const CalendarGrid = ({ data, selectedDate }: { data: AttendanceData[], selectedDate: Date }) => {
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).getDay();
+
+    return (
+        <div>
+            <div className="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-gray-400 mb-2">
+                {daysOfWeek.map(day => <div key={day}>{day}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
+                {data.map(dayData => <CalendarDay key={dayData.day} dayData={dayData} />)}
+            </div>
+        </div>
+    );
+};
+
+interface SingerAttendanceViewProps {
+    user: User;
+    onNewPermissionRequest: (request: PermissionRequest) => void;
+    events: Event[];
+    attendanceRecords: Record<string, Record<string, AttendanceStatus>>;
+    onMenuClick?: () => void;
+}
+
+const SingerAttendanceView = ({ user, onNewPermissionRequest, events, attendanceRecords, onMenuClick }: SingerAttendanceViewProps) => {
+    const [selectedDate, setSelectedDate] = useState(new Date(currentYear, 8)); // Default to September
+    const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
+    const [permissionConfirmation, setPermissionConfirmation] = useState<React.ReactNode | null>(null);
+
+    const attendanceDataForMonth = useMemo<AttendanceData[]>(() => {
+        const year = selectedDate.getFullYear();
+        const month = selectedDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const data: AttendanceData[] = [];
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            const dateString = date.toISOString().split('T')[0];
+            const eventOnDay = events.find(e => e.date === dateString);
+
+            if (eventOnDay) {
+                const userStatus = attendanceRecords[eventOnDay.id]?.[user.id] || 'No Event';
+                if (userStatus === 'No Event' && new Date(eventOnDay.date + 'T' + eventOnDay.endTime) < new Date()) {
+                    data.push({ day, status: 'Absent', eventType: eventOnDay.type });
+                } else {
+                    data.push({ day, status: userStatus, eventType: eventOnDay.type });
+                }
+            } else {
+                data.push({ day, status: 'No Event', eventType: 'None' });
+            }
+        }
+        return data;
+    }, [selectedDate, events, attendanceRecords, user.id]);
+
+    const overallSummary = useMemo(() => {
+        const summary: Record<AttendanceStatus, number> = { 'Present': 0, 'Absent': 0, 'Excused': 0, 'No Event': 0 };
+        const now = new Date();
+
+        events.forEach(event => {
+            if (new Date(`${event.date}T${event.endTime}`) < now) {
+                const status = attendanceRecords[event.id]?.[user.id];
+                if (status && (status === 'Present' || status === 'Absent' || status === 'Excused')) {
+                    summary[status]++;
+                } else {
+                    summary['Absent']++;
+                }
+            }
+        });
+        return summary;
+    }, [events, attendanceRecords, user.id]);
+
+    const handlePermissionSubmit = (request: { startDate: string; endDate: string; reason: string; details: string }) => {
+        onNewPermissionRequest({ ...request, userName: user.name });
+        setPermissionConfirmation(
+            <div className="text-center">
+                <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-100">Request Submitted!</h2>
+                <p className="text-gray-300 mt-2">Your permission request has been sent to the committee for review.</p>
+            </div>
+        );
+    };
+
+    const total = overallSummary.Present + overallSummary.Absent + overallSummary.Excused;
+
+    return (
+        <div className="bg-ahava-background min-h-full">
+            <Header
+                breadcrumbs={['Dashboard']}
+                title="My Attendance & Performance"
+                titleIcon={<ChartBarIcon className="h-6 w-6" />}
+                onMenuClick={onMenuClick}
+                actionButton={
+                    <button
+                        onClick={() => {
+                            setPermissionConfirmation(null);
+                            setIsPermissionModalOpen(true);
+                        }}
+                        className="bg-ahava-purple-dark text-white font-semibold py-2 px-4 rounded-lg hover:bg-ahava-purple-medium transition-colors flex items-center"
+                    >
+                        <PaperAirplaneIcon className="mr-2" />
+                        Request Permission
+                    </button>
+                }
+            />
+            <div className="p-4 md:p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1 bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark">
+                        <h3 className="text-xl font-bold text-gray-100 mb-4 text-center">Overall Performance</h3>
+                        <AttendancePieChart summary={overallSummary} />
+                        <div className="mt-6 space-y-3">
+                            <StatCard title="Present" value={overallSummary.Present} color="bg-ahava-purple-medium" percentage={total > 0 ? (overallSummary.Present / total) * 100 : -1} />
+                            <StatCard title="Excused" value={overallSummary.Excused} color="bg-ahava-purple-light" percentage={total > 0 ? (overallSummary.Excused / total) * 100 : -1} />
+                            <StatCard title="Absent" value={overallSummary.Absent} color="bg-red-500/80" percentage={total > 0 ? (overallSummary.Absent / total) * 100 : -1} />
+                        </div>
+                    </div>
+                    <div className="lg:col-span-2 bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-gray-100">Monthly Attendance</h3>
+                            <MonthSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+                        </div>
+                        <CalendarGrid data={attendanceDataForMonth} selectedDate={selectedDate} />
+                    </div>
+                </div>
+            </div>
+            <PermissionRequestModal
+                isOpen={isPermissionModalOpen}
+                onClose={() => setIsPermissionModalOpen(false)}
+                onSubmit={handlePermissionSubmit}
+                confirmationContent={permissionConfirmation}
+            />
+        </div>
+    );
+};
