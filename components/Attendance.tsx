@@ -138,9 +138,9 @@ const SingerAttendanceRow: React.FC<SingerAttendanceRowProps> = ({ singer, statu
 
     const statusOptions: AttendanceStatus[] = ['Present', 'Absent', 'Excused'];
     const statusClasses = {
-        'Present': 'bg-ahava-purple-dark text-white',
+        'Present': 'bg-green-500 text-white',
         'Absent': 'bg-red-500 text-white',
-        'Excused': 'bg-ahava-magenta text-white',
+        'Excused': 'bg-yellow-500 text-black',
         'default': 'bg-ahava-purple-medium text-gray-200 hover:bg-ahava-purple-light',
     };
 
@@ -290,9 +290,9 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                             {(['Present', 'Absent', 'Excused'] as const).map(status => {
-                                const colors = { Present: { bg: 'bg-green-900/40', border: 'border-green-700', hover: 'hover:bg-green-900/60', text: 'text-green-300', value: 'text-green-200' }, 
-                                                 Absent: { bg: 'bg-red-900/40', border: 'border-red-700', hover: 'hover:bg-red-900/60', text: 'text-red-300', value: 'text-red-200' }, 
-                                                 Excused: { bg: 'bg-purple-900/40', border: 'border-purple-700', hover: 'hover:bg-purple-900/60', text: 'text-purple-300', value: 'text-purple-200' } };
+                                const colors = { Present: { bg: 'bg-green-900/40', border: 'border-green-700', hover: 'hover:bg-green-900/60', text: 'text-green-300', value: 'text-green-200' },
+                                                 Absent: { bg: 'bg-red-900/40', border: 'border-red-700', hover: 'hover:bg-red-900/60', text: 'text-red-300', value: 'text-red-200' },
+                                                 Excused: { bg: 'bg-yellow-900/40', border: 'border-yellow-700', hover: 'hover:bg-yellow-900/60', text: 'text-yellow-300', value: 'text-yellow-200' } };
                                 const color = colors[status];
                                 return (
                                     <button 
@@ -428,9 +428,9 @@ const MonthSelector = ({ selectedDate, onDateChange }: { selectedDate: Date, onD
 
 const CalendarDay: React.FC<{ dayData: AttendanceData }> = ({ dayData }) => {
     const statusClasses: Record<AttendanceStatus, string> = {
-        'Present': 'bg-ahava-purple-medium text-white',
+        'Present': 'bg-green-500 text-white',
         'Absent': 'bg-red-500/80 text-white',
-        'Excused': 'bg-ahava-magenta text-white',
+        'Excused': 'bg-yellow-500 text-black',
         'No Event': 'bg-ahava-background text-gray-500',
     };
     
@@ -561,8 +561,8 @@ const SingerAttendanceView = ({ user, onNewPermissionRequest, events, attendance
                         <h3 className="text-xl font-bold text-gray-100 mb-4 text-center">Overall Performance</h3>
                         <AttendancePieChart summary={overallSummary} />
                         <div className="mt-6 space-y-3">
-                            <StatCard title="Present" value={overallSummary.Present} color="bg-ahava-purple-medium" percentage={total > 0 ? (overallSummary.Present / total) * 100 : -1} />
-                            <StatCard title="Excused" value={overallSummary.Excused} color="bg-ahava-purple-light" percentage={total > 0 ? (overallSummary.Excused / total) * 100 : -1} />
+                            <StatCard title="Present" value={overallSummary.Present} color="bg-green-500" percentage={total > 0 ? (overallSummary.Present / total) * 100 : -1} />
+                            <StatCard title="Excused" value={overallSummary.Excused} color="bg-yellow-500" percentage={total > 0 ? (overallSummary.Excused / total) * 100 : -1} />
                             <StatCard title="Absent" value={overallSummary.Absent} color="bg-red-500/80" percentage={total > 0 ? (overallSummary.Absent / total) * 100 : -1} />
                         </div>
                     </div>

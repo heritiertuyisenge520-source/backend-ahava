@@ -13,6 +13,35 @@ import { Register } from './components/Register';
 import { Credentials } from './components/Credentials';
 import LandingPage from './components/LandingPage';
 
+// --- Registration Success Component ---
+const RegistrationSuccess = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
+    return (
+        <div className="min-h-screen bg-ahava-background flex flex-col justify-center items-center p-4">
+            <div className="w-full max-w-md">
+                <div className="bg-ahava-surface shadow-lg rounded-xl p-6 sm:p-8 border border-ahava-purple-dark">
+                    <div className="text-center">
+                        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <h1 className="text-2xl font-bold text-gray-100 mb-4">Congratulations!</h1>
+                        <p className="text-gray-300 mb-6">
+                            Your data is stored in the Ahava Choir database. You can login using your full name and password you created.
+                        </p>
+                        <button
+                            onClick={onSwitchToLogin}
+                            className="w-full bg-ahava-purple-dark text-white font-semibold py-2 px-4 rounded-lg hover:bg-ahava-purple-medium transition-colors"
+                        >
+                            Go to Login
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 // --- Songs Page Components (replaces placeholder) ---
 
@@ -442,34 +471,27 @@ const Singers = ({ singers, onMenuClick }: { singers: User[], onMenuClick?: () =
 
 // --- End of Singers Page Components ---
 
-const initialUsers: User[] = [
-    { id: 'usr_1', username: 'HABINEZA', name: 'Elie HABINEZA', email: 'habineza.elie@ahava.choir', phoneNumber: '+250784832250', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_2', username: 'GASORE', name: 'Innocent GASORE', email: 'gasore.innocent@ahava.choir', phoneNumber: '+250786320709', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_3', username: 'IRADUHA', name: 'Pacific IRADUHA', email: 'iraduha.pacific@ahava.choir', phoneNumber: '+250782956484', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_4', username: 'INGABIRE', name: 'Diane INGABIRE', email: 'ingabire.diane@ahava.choir', phoneNumber: '+250786191932', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_5', username: 'MASENGESHO', name: 'Emmanuel MASENGESHO', email: 'masengesho.emmanuel@ahava.choir', phoneNumber: '+250789178483', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_6', username: 'TUMUSHIME', name: 'Gad AZABE TUMUSHIME', email: 'azabetumushime.gad@ahava.choir', phoneNumber: '+250780188526', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_7', username: 'UWAJENEZA', name: 'Deliphine UWAJENEZA', email: 'uwajeneza.deliphine@ahava.choir', phoneNumber: '+250780218838', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_8', username: 'NIYONIRINGIYE', name: 'Xaverine NIYONIRINGIYE', email: 'niyoniringiye.xaverine@ahava.choir', phoneNumber: '+250784254558', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_9', username: 'NZAKIZWANAYO', name: 'Malachie NZAKIZWANAYO', email: 'nzakizwanayo.malachie@ahava.choir', phoneNumber: '+250786946950', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_10', username: 'DUSHIMIMANA', name: 'Isaac DUSHIMIMANA', email: 'dushimimana.isaac@ahava.choir', phoneNumber: '+250791224833', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_11', username: 'TUYISENGE.Gad', name: 'Gad TUYISENGE', email: 'tuyisenge.gad@ahava.choir', phoneNumber: '+250781385881', profilePictureUrl: undefined, role: 'Advisor', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_12', username: 'IRAGENA', name: 'Placide IRAGENA', email: 'iragena.placide@ahava.choir', phoneNumber: '+250782770976', profilePictureUrl: undefined, role: 'Song Conductor', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_13', username: 'BENEGUSENGA', name: 'Patrick BENEGUSENGA', email: 'benegusenga.patrick@ahava.choir', phoneNumber: '+250787601355', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_14', username: 'ABOYISHIMIRA', name: 'Ezra ABOYISHIMIRA', email: 'aboyishimira.ezra@ahava.choir', phoneNumber: '+250780792012', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_15', username: 'UWITONZE', name: 'Eric UWITONZE', email: 'uwitonze.eric@ahava.choir', phoneNumber: '+250737387824', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_16', username: 'IZUKONDI', name: 'Alliance IZUKONDI', email: 'izukondi.alliance@ahava.choir', phoneNumber: '+250785275151', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_17', username: 'TUYISHIME.Eliane', name: 'Eliane TUYISHIME', email: 'tuyishime.eliane@ahava.choir', phoneNumber: '+250783145060', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_18', username: 'NIYIKORA', name: 'Philemon NIYIKORA', email: 'niyikora.philemon@ahava.choir', phoneNumber: '+250784060459', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_19', username: 'MUGISHA', name: 'Christian MUGISHA', email: 'mugisha.christian@ahava.choir', phoneNumber: '+250786179701', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_20', username: 'UWIJURURU', name: 'Marcelin UWIJURURU', email: 'uwijururu.marcelin@ahava.choir', phoneNumber: '+250729104212', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_21', username: 'TUYISHIME.Joyeuse', name: 'Joyeuse TUYISHIME', email: 'tuyishime.joyeuse@ahava.choir', phoneNumber: '+250785688093', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_22', username: 'ISHIMWE', name: 'Philemon ISHIMWE', email: 'ishimwe.philemon@ahava.choir', phoneNumber: '+250780369312', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_23', username: 'NDAGIJIMANA', name: 'JEAN Innocent NDAGIJIMANA', email: 'ndagijimana.jean@ahava.choir', phoneNumber: '+250785608204', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_24', username: 'IRAKOZE', name: 'Rebecca IRAKOZE', email: 'irakoze.rebecca@ahava.choir', phoneNumber: '+250786936360', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_25', username: 'MUKANIYONSABA', name: 'Josiane MUKANIYONSABA', email: 'mukaniyonsaba.josiane@ahava.choir', phoneNumber: '+250783882378', profilePictureUrl: undefined, role: 'Singer', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-    { id: 'usr_26', username: 'TUYISENGE.Hertier', name: 'Hertier TUYISENGE', email: 'tuyisenge.hertier@ahava.choir', phoneNumber: '+250787581007', profilePictureUrl: undefined, role: 'President', dateOfBirth: '', placeOfBirth: '', placeOfResidence: '', yearOfStudy: '', university: '', gender: '', maritalStatus: '', homeParishName: '', homeParishLocation: { cell: '', sector: '', district: '' }, schoolResidence: '', password: '123' },
-];
+// Admin user - will be created automatically on first startup
+const adminUser: User = {
+    id: 'admin_001',
+    username: 'TUYISENGE.Heritier',
+    name: 'Hertier TUYISENGE',
+    email: 'admin@ahava.choir',
+    phoneNumber: '+250787581007',
+    profilePictureUrl: undefined,
+    role: 'President',
+    dateOfBirth: '1990-01-01',
+    placeOfBirth: 'Kigali',
+    placeOfResidence: 'Kigali',
+    yearOfStudy: '',
+    university: '',
+    gender: 'Male',
+    maritalStatus: 'Single',
+    homeParishName: 'Ahava Parish',
+    homeParishLocation: { cell: 'Central', sector: 'Nyarugenge', district: 'Nyarugenge' },
+    schoolResidence: 'Kigali',
+    password: '123'
+};
 
 
 const today = new Date();
@@ -542,60 +564,170 @@ const updateUsernames = (userList: User[]): User[] => {
 
 
 export default function App() {
-    const [currentUser, setCurrentUser] = useState<User | null>(initialUsers.find(u => u.name === 'Hertier TUYISENGE') || null);
-    const [authView, setAuthView] = useState<'login' | 'register'>('login');
-    const [users, setUsers] = useState<User[]>(initialUsers);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [authView, setAuthView] = useState<'login' | 'register' | 'registration-success'>('register');
+    const [users, setUsers] = useState<User[]>([adminUser]);
     const [events, setEvents] = useState<Event[]>(initialEvents);
     const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, AttendanceStatus>>>({});
     const [activeView, setActiveView] = useState<View>(View.LANDING);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Add keyboard shortcut for landing page
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.ctrlKey && event.key === 'h') {
-                event.preventDefault();
-                if (currentUser) {
-                    setActiveView(View.LANDING);
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentUser]);
+    // No keyboard shortcuts needed
 
     const handleLogin = async (username: string, password: string): Promise<boolean> => {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-        if (user && user.password === password) {
+        try {
+            const response = await fetch('http://localhost:5007/api/users/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                // Handle different error messages
+                if (response.status === 403) {
+                    alert(data.message); // Show pending/rejected message
+                    return false;
+                } else if (response.status === 401) {
+                    alert('Invalid credentials. Please try again.');
+                    return false;
+                } else {
+                    alert(data.message || 'Login failed');
+                    return false;
+                }
+            }
+
+            // Login successful - try to get full user profile, fallback to login data if needed
+            let user: User;
+            try {
+                const profileResponse = await fetch('http://localhost:5007/api/users/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${data.token}`,
+                    },
+                });
+
+                if (profileResponse.ok) {
+                    const profileData = await profileResponse.json();
+                    user = {
+                        id: profileData._id,
+                        username: profileData.username,
+                        name: profileData.name,
+                        email: profileData.email,
+                        role: profileData.role,
+                        phoneNumber: profileData.phoneNumber,
+                        profilePictureUrl: profileData.profilePictureUrl,
+                        dateOfBirth: profileData.dateOfBirth,
+                        placeOfBirth: profileData.placeOfBirth,
+                        placeOfResidence: profileData.placeOfResidence,
+                        yearOfStudy: profileData.yearOfStudy,
+                        university: profileData.university,
+                        gender: profileData.gender,
+                        maritalStatus: profileData.maritalStatus,
+                        homeParishName: profileData.homeParishName,
+                        homeParishLocation: profileData.homeParishLocation,
+                        schoolResidence: profileData.schoolResidence,
+                    };
+                } else {
+                    // Fallback: use login data and provide defaults for required fields
+                    user = {
+                        id: data._id,
+                        username: data.username,
+                        name: data.name,
+                        email: data.email,
+                        role: data.role,
+                        phoneNumber: '', // Provide defaults
+                        profilePictureUrl: undefined,
+                        dateOfBirth: '',
+                        placeOfBirth: '',
+                        placeOfResidence: '',
+                        yearOfStudy: '',
+                        university: '',
+                        gender: '',
+                        maritalStatus: '',
+                        homeParishName: '',
+                        homeParishLocation: { cell: '', sector: '', district: '' },
+                        schoolResidence: '',
+                    };
+                }
+            } catch (profileError) {
+                console.error('Profile fetch failed, using login data:', profileError);
+                // Fallback: use login data with defaults
+                user = {
+                    id: data._id,
+                    username: data.username,
+                    name: data.name,
+                    email: data.email,
+                    role: data.role,
+                    phoneNumber: '',
+                    profilePictureUrl: undefined,
+                    dateOfBirth: '',
+                    placeOfBirth: '',
+                    placeOfResidence: '',
+                    yearOfStudy: '',
+                    university: '',
+                    gender: '',
+                    maritalStatus: '',
+                    homeParishName: '',
+                    homeParishLocation: { cell: '', sector: '', district: '' },
+                    schoolResidence: '',
+                };
+            }
+
             setCurrentUser(user);
-            setActiveView(View.LANDING);
+            setActiveView(View.DASHBOARD);
             return true;
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Network error. Please try again.');
+            return false;
         }
-        return false;
     };
 
     const handleRegister = async (newUser: User, password: string): Promise<string | null> => {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const existingUser = users.find(u => u.email.toLowerCase() === newUser.email.toLowerCase());
-        if (existingUser) {
-            return "An account with this email already exists.";
-        }
+        try {
+            const response = await fetch('http://localhost:5007/api/users/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: newUser.name,
+                    email: newUser.email,
+                    phoneNumber: newUser.phoneNumber,
+                    profilePictureUrl: newUser.profilePictureUrl,
+                    dateOfBirth: newUser.dateOfBirth,
+                    placeOfBirth: newUser.placeOfBirth,
+                    placeOfResidence: newUser.placeOfResidence,
+                    yearOfStudy: newUser.yearOfStudy,
+                    university: newUser.university,
+                    gender: newUser.gender,
+                    maritalStatus: newUser.maritalStatus,
+                    homeParishName: newUser.homeParishName,
+                    homeParishLocation: newUser.homeParishLocation,
+                    schoolResidence: newUser.schoolResidence,
+                    password: password,
+                    role: 'Singer'
+                }),
+            });
 
-        const userToSave: User = {
-            ...newUser,
-            id: `usr_${new Date().getTime()}`,
-            username: '', // Will be set by updateUsernames
-            password: password,
-            role: 'Singer',
-        };
-        
-        const updatedUsers = updateUsernames([...users, userToSave]);
-        setUsers(updatedUsers);
-        return null; // Indicates success
+            const data = await response.json();
+
+            if (!response.ok) {
+                return data.message || 'Registration failed';
+            }
+
+            // Registration successful
+            setAuthView('registration-success');
+            return null; // Success
+        } catch (error) {
+            console.error('Registration error:', error);
+            return 'Network error. Please try again.';
+        }
     };
     
     const handleLogout = () => {
@@ -723,24 +855,14 @@ export default function App() {
     if (!currentUser) {
         if (authView === 'login') {
             return <Login onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} />;
+        } else if (authView === 'registration-success') {
+            return <RegistrationSuccess onSwitchToLogin={() => setAuthView('login')} />;
         } else {
             return <Register onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />;
         }
     }
 
-    if (currentUser && activeView === View.LANDING) {
-        return (
-            <LandingPage
-                onContinue={() => setActiveView(View.DASHBOARD)}
-                onQuickLogin={async (username: string, password: string) => {
-                    const success = await handleLogin(username, password);
-                    if (success) {
-                        setActiveView(View.DASHBOARD);
-                    }
-                }}
-            />
-        );
-    }
+    // No landing page - users go directly to dashboard
 
     const onMenuClick = () => setIsSidebarOpen(true);
 
