@@ -601,6 +601,10 @@ export default function App() {
                 }
             }
 
+            // Store the token in localStorage
+            localStorage.setItem('token', data.token);
+            console.log('Token stored in localStorage:', data.token);
+
             // Login successful - try to get full user profile, fallback to login data if needed
             let user: User;
             try {

@@ -70,6 +70,11 @@ app.get('/', (req, res) => {
     res.json({ message: 'Ahava Choir Management API' });
 });
 
+// Test route for debugging
+app.get('/test', (req, res) => {
+    res.json({ message: 'Test route working', timestamp: new Date().toISOString() });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

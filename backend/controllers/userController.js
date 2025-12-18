@@ -47,26 +47,35 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create user
-        const user = await User.create({
+        // Create user with defaults for required fields
+        const userData = {
             username,
             name,
             email,
-            phoneNumber,
-            profilePictureUrl,
-            role,
-            dateOfBirth,
-            placeOfBirth,
-            placeOfResidence,
-            yearOfStudy,
-            university,
-            gender,
-            maritalStatus,
-            homeParishName,
-            homeParishLocation,
-            schoolResidence,
-            password: hashedPassword
-        });
+            phoneNumber: phoneNumber || '',
+            profilePictureUrl: profilePictureUrl || '',
+            role: role || 'Singer',
+            dateOfBirth: dateOfBirth || '',
+            placeOfBirth: placeOfBirth || '',
+            placeOfResidence: placeOfResidence || '',
+            yearOfStudy: yearOfStudy || '',
+            university: university || '',
+            gender: gender || '',
+            maritalStatus: maritalStatus || '',
+            homeParishName: homeParishName || '',
+            homeParishLocation: {
+                cell: homeParishLocation?.cell || '',
+                sector: homeParishLocation?.sector || '',
+                district: homeParishLocation?.district || ''
+            },
+            schoolResidence: schoolResidence || '',
+            password: hashedPassword,
+            status: 'pending'
+        };
+
+        console.log('Creating user with data:', userData);
+        const user = await User.create(userData);
+        console.log('User created successfully:', user.name, user.email, user.status);
 
         // Generate token
         const token = generateToken(user._id);
@@ -80,8 +89,8 @@ const registerUser = async (req, res) => {
             token
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Registration error details:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
@@ -295,17 +304,21 @@ const updateUser = async (req, res) => {
 // @access  Private/Admin
 const approveUser = async (req, res) => {
     try {
+        const { role } = req.body; // Get role from request body
         const user = await User.findById(req.params.id);
 
         if (user) {
             user.status = 'approved';
+            if (role) {
+                user.role = role; // Update role if provided
+            }
             const updatedUser = await user.save();
             res.json({ message: 'User approved successfully', user: updatedUser });
         } else {
             res.status(404).json({ message: 'User not found' });
         }
     } catch (error) {
-        console.error(error);
+        console.error('Approve user error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -335,10 +348,13 @@ const rejectUser = async (req, res) => {
 // @access  Private/Admin
 const getPendingUsers = async (req, res) => {
     try {
+        console.log('Getting pending users for admin:', req.user.username, 'role:', req.user.role);
         const pendingUsers = await User.find({ status: 'pending' }).select('-password').sort({ createdAt: -1 });
+        console.log('Found pending users:', pendingUsers.length);
+        pendingUsers.forEach(user => console.log('Pending user:', user.name, user.email, user.status));
         res.json(pendingUsers);
     } catch (error) {
-        console.error(error);
+        console.error('Get pending users error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
