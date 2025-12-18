@@ -19,7 +19,7 @@ const escapeRegex = (string) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        let { username, name, email, phoneNumber, profilePictureUrl, role, dateOfBirth, placeOfBirth, placeOfResidence, yearOfStudy, university, gender, maritalStatus, homeParishName, homeParishLocation, schoolResidence, password } = req.body;
+        let { username, name, email, phoneNumber, profilePictureUrl, role, dateOfBirth, placeOfBirth, placeOfResidence, yearOfStudy, university, gender, maritalStatus, homeParishName, homeParishLocation, schoolResidence, province, district, sector, cell, password } = req.body;
 
         // Generate username if not provided
         if (!username) {
@@ -69,6 +69,10 @@ const registerUser = async (req, res) => {
                 district: homeParishLocation?.district || ''
             },
             schoolResidence: schoolResidence || '',
+            province: province || '',
+            district: district || '',
+            sector: sector || '',
+            cell: cell || '',
             password: hashedPassword,
             status: 'pending'
         };
@@ -126,6 +130,18 @@ const loginUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                phoneNumber: user.phoneNumber,
+                profilePictureUrl: user.profilePictureUrl,
+                dateOfBirth: user.dateOfBirth,
+                placeOfBirth: user.placeOfBirth,
+                placeOfResidence: user.placeOfResidence,
+                yearOfStudy: user.yearOfStudy,
+                university: user.university,
+                gender: user.gender,
+                maritalStatus: user.maritalStatus,
+                homeParishName: user.homeParishName,
+                homeParishLocation: user.homeParishLocation,
+                schoolResidence: user.schoolResidence,
                 token
             });
         } else {

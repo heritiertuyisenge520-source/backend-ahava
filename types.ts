@@ -33,6 +33,11 @@ export interface User {
     };
     schoolResidence: string;
     password?: string; // For storing in our pseudo-DB
+    status?: 'pending' | 'approved' | 'rejected'; // User approval status
+    province?: string; // Rwandan administrative divisions
+    district?: string;
+    sector?: string;
+    cell?: string;
 }
 
 export interface Event {

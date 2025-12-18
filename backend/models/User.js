@@ -34,16 +34,16 @@ const userSchema = new mongoose.Schema({
     },
     dateOfBirth: {
         type: String,
-        required: true
+        required: false
     },
     placeOfBirth: {
         type: String,
-        required: true,
+        required: false,
         trim: true
     },
     placeOfResidence: {
         type: String,
-        required: true,
+        required: false,
         trim: true
     },
     yearOfStudy: {
@@ -68,29 +68,45 @@ const userSchema = new mongoose.Schema({
     },
     homeParishName: {
         type: String,
-        required: true,
+        required: false,
         trim: true
     },
     homeParishLocation: {
         cell: {
             type: String,
-            required: true,
+            required: false,
             trim: true
         },
         sector: {
             type: String,
-            required: true,
+            required: false,
             trim: true
         },
         district: {
             type: String,
-            required: true,
+            required: false,
             trim: true
         }
     },
     schoolResidence: {
         type: String,
-        required: true,
+        required: false,
+        trim: true
+    },
+    province: {
+        type: String,
+        trim: true
+    },
+    district: {
+        type: String,
+        trim: true
+    },
+    sector: {
+        type: String,
+        trim: true
+    },
+    cell: {
+        type: String,
         trim: true
     },
     password: {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Profile } from './components/Profile';
@@ -43,7 +42,7 @@ const RegistrationSuccess = ({ onSwitchToLogin }: { onSwitchToLogin: () => void 
 };
 
 
-// --- Songs Page Components (replaces placeholder) ---
+// --- Songs Page Components (unchanged) ---
 
 const initialSongs: Song[] = [
     { 
@@ -192,7 +191,6 @@ interface SongListItemProps {
     canManage: boolean;
 }
 
-// FIX: Explicitly type component with React.FC to correctly handle the 'key' prop.
 const SongListItem: React.FC<SongListItemProps> = ({ song, onSelect, onEdit, onDelete, canManage }) => {
     return (
         <div className="bg-ahava-surface p-4 rounded-lg shadow-sm flex items-center justify-between hover:shadow-lg transition-shadow border border-ahava-purple-dark hover:border-ahava-purple-medium">
@@ -376,15 +374,12 @@ const Songs = ({ user, onMenuClick }: { user: User, onMenuClick?: () => void }) 
     );
 };
 
-// --- End of Songs Page Components ---
-
-// --- Singers Page Components ---
+// --- Singers Page Components (unchanged except props) ---
 
 interface SingerCardProps {
     singer: User;
 }
 
-// FIX: Explicitly type component with React.FC to correctly handle the 'key' prop.
 const SingerCard: React.FC<SingerCardProps> = ({ singer }) => {
     const getInitials = (name: string) => {
         const names = name.split(' ');
@@ -469,31 +464,7 @@ const Singers = ({ singers, onMenuClick }: { singers: User[], onMenuClick?: () =
     );
 };
 
-// --- End of Singers Page Components ---
-
-// Admin user - will be created automatically on first startup
-const adminUser: User = {
-    id: 'admin_001',
-    username: 'TUYISENGE.Heritier',
-    name: 'Hertier TUYISENGE',
-    email: 'admin@ahava.choir',
-    phoneNumber: '+250787581007',
-    profilePictureUrl: undefined,
-    role: 'President',
-    dateOfBirth: '1990-01-01',
-    placeOfBirth: 'Kigali',
-    placeOfResidence: 'Kigali',
-    yearOfStudy: '',
-    university: '',
-    gender: 'Male',
-    maritalStatus: 'Single',
-    homeParishName: 'Ahava Parish',
-    homeParishLocation: { cell: 'Central', sector: 'Nyarugenge', district: 'Nyarugenge' },
-    schoolResidence: 'Kigali',
-    password: '123'
-};
-
-
+// --- Hardcoded data (events, announcements) kept as-is ---
 const today = new Date();
 const yesterday = new Date();
 yesterday.setDate(today.getDate() - 1);
@@ -506,17 +477,16 @@ const farFutureDate = new Date();
 farFutureDate.setDate(today.getDate() + 10);
 
 const startOfToday = new Date(today);
-startOfToday.setHours(today.getHours() - 1, 0, 0, 0); // An event that started an hour ago
+startOfToday.setHours(today.getHours() - 1, 0, 0, 0);
 const endOfToday = new Date(today);
-endOfToday.setHours(today.getHours() + 1, 0, 0, 0); // And ends in an hour
+endOfToday.setHours(today.getHours() + 1, 0, 0, 0);
 
 const initialEvents: Event[] = [
-    { id: '1', name: 'Saturday Vigil Service', type: 'Service', date: yesterday.toISOString().split('T')[0], startTime: '17:00', endTime: '18:30' }, // Past
-    { id: '2', name: 'Ongoing Weekly Practice', type: 'Practice', date: today.toISOString().split('T')[0], startTime: startOfToday.toTimeString().substring(0,5), endTime: endOfToday.toTimeString().substring(0,5) }, // In Progress
-    { id: '3', name: 'Future Practice Session', type: 'Practice', date: futureDate.toISOString().split('T')[0], startTime: '10:00', endTime: '12:00' }, // Future
-    { id: '4', name: 'Rehearsal', type: 'Practice', date: farFutureDate.toISOString().split('T')[0], startTime: '14:19', endTime: '14:49' }, // Far Future
+    { id: '1', name: 'Saturday Vigil Service', type: 'Service', date: yesterday.toISOString().split('T')[0], startTime: '17:00', endTime: '18:30' },
+    { id: '2', name: 'Ongoing Weekly Practice', type: 'Practice', date: today.toISOString().split('T')[0], startTime: startOfToday.toTimeString().substring(0,5), endTime: endOfToday.toTimeString().substring(0,5) },
+    { id: '3', name: 'Future Practice Session', type: 'Practice', date: futureDate.toISOString().split('T')[0], startTime: '10:00', endTime: '12:00' },
+    { id: '4', name: 'Rehearsal', type: 'Practice', date: farFutureDate.toISOString().split('T')[0], startTime: '14:19', endTime: '14:49' },
 ];
-
 
 const initialAnnouncements: Announcement[] = [
     {
@@ -537,162 +507,150 @@ const initialAnnouncements: Announcement[] = [
     },
 ];
 
-const updateUsernames = (userList: User[]): User[] => {
-    const lastNameCounts = new Map<string, number>();
-    
-    userList.forEach(user => {
-        const nameParts = user.name.trim().split(/\s+/);
-        const lastName = nameParts.pop()?.toLowerCase() || '';
-        if (lastName) {
-            lastNameCounts.set(lastName, (lastNameCounts.get(lastName) || 0) + 1);
-        }
-    });
-
-    return userList.map(user => {
-        const nameParts = user.name.trim().split(/\s+/);
-        const lastName = nameParts.pop() || '';
-        const firstName = nameParts[0] || '';
-        
-        let newUsername = lastName;
-        if (lastNameCounts.get(lastName.toLowerCase()) > 1) {
-            newUsername = `${lastName}.${firstName}`;
-        }
-        
-        return { ...user, username: newUsername };
-    });
-};
-
-
 export default function App() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [authView, setAuthView] = useState<'login' | 'register' | 'registration-success'>('register');
-    const [users, setUsers] = useState<User[]>([adminUser]);
+    const [users, setUsers] = useState<User[]>([]); // Real approved users
+    const [pendingUsers, setPendingUsers] = useState<User[]>([]); // Real pending users
     const [events, setEvents] = useState<Event[]>(initialEvents);
     const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, AttendanceStatus>>>({});
-    const [activeView, setActiveView] = useState<View>(View.LANDING);
+    const [activeView, setActiveView] = useState<View>(View.DASHBOARD);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // No keyboard shortcuts needed
+    // Fetch real users and pending users when admin logs in
+    useEffect(() => {
+        if (currentUser && (currentUser.role === 'President' || currentUser.role === 'Advisor')) {
+            const fetchUsers = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
+
+                    // Fetch all approved users
+                    const usersRes = await fetch('http://localhost:5007/api/users', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (usersRes.ok) {
+                        const usersData = await usersRes.json();
+                        const mappedUsers = usersData.map((user: any) => ({
+                            id: user._id,
+                            username: user.username,
+                            name: user.name,
+                            email: user.email,
+                            role: user.role,
+                            phoneNumber: user.phoneNumber || '',
+                            profilePictureUrl: user.profilePictureUrl || undefined,
+                            dateOfBirth: user.dateOfBirth || '',
+                            placeOfBirth: user.placeOfBirth || '',
+                            placeOfResidence: user.placeOfResidence || '',
+                            yearOfStudy: user.yearOfStudy || '',
+                            university: user.university || '',
+                            gender: user.gender || '',
+                            maritalStatus: user.maritalStatus || '',
+                            homeParishName: user.homeParishName || '',
+                            homeParishLocation: user.homeParishLocation || { cell: '', sector: '', district: '' },
+                            schoolResidence: user.schoolResidence || '',
+                            status: user.status,
+                        }));
+                        setUsers(mappedUsers);
+                    }
+
+                    // Fetch pending users
+                    const pendingRes = await fetch('http://localhost:5007/api/users/pending', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (pendingRes.ok) {
+                        const pendingData = await pendingRes.json();
+                        const mappedPendingUsers = pendingData.map((user: any) => ({
+                            id: user._id,
+                            username: user.username,
+                            name: user.name,
+                            email: user.email,
+                            role: user.role,
+                            phoneNumber: user.phoneNumber || '',
+                            profilePictureUrl: user.profilePictureUrl || undefined,
+                            dateOfBirth: user.dateOfBirth || '',
+                            placeOfBirth: user.placeOfBirth || '',
+                            placeOfResidence: user.placeOfResidence || '',
+                            yearOfStudy: user.yearOfStudy || '',
+                            university: user.university || '',
+                            gender: user.gender || '',
+                            maritalStatus: user.maritalStatus || '',
+                            homeParishName: user.homeParishName || '',
+                            homeParishLocation: user.homeParishLocation || { cell: '', sector: '', district: '' },
+                            schoolResidence: user.schoolResidence || '',
+                        }));
+                        setPendingUsers(mappedPendingUsers);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch users:', err);
+                }
+            };
+            fetchUsers();
+        }
+    }, [currentUser]);
 
     const handleLogin = async (username: string, password: string): Promise<boolean> => {
-        try {
-            const response = await fetch('http://localhost:5007/api/users/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password }),
-            });
+    try {
+        const response = await fetch('http://localhost:5007/api/users/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (!response.ok) {
-                // Handle different error messages
-                if (response.status === 403) {
-                    alert(data.message); // Show pending/rejected message
-                    return false;
-                } else if (response.status === 401) {
-                    alert('Invalid credentials. Please try again.');
-                    return false;
-                } else {
-                    alert(data.message || 'Login failed');
-                    return false;
-                }
+        if (!response.ok) {
+            if (response.status === 403) {
+                alert(data.message);
+                return false;
+            } else if (response.status === 401) {
+                alert('Invalid credentials. Please try again.');
+                return false;
+            } else {
+                alert(data.message || 'Login failed');
+                return false;
             }
-
-            // Store the token in localStorage
-            localStorage.setItem('token', data.token);
-            console.log('Token stored in localStorage:', data.token);
-
-            // Login successful - try to get full user profile, fallback to login data if needed
-            let user: User;
-            try {
-                const profileResponse = await fetch('http://localhost:5007/api/users/profile', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${data.token}`,
-                    },
-                });
-
-                if (profileResponse.ok) {
-                    const profileData = await profileResponse.json();
-                    user = {
-                        id: profileData._id,
-                        username: profileData.username,
-                        name: profileData.name,
-                        email: profileData.email,
-                        role: profileData.role,
-                        phoneNumber: profileData.phoneNumber,
-                        profilePictureUrl: profileData.profilePictureUrl,
-                        dateOfBirth: profileData.dateOfBirth,
-                        placeOfBirth: profileData.placeOfBirth,
-                        placeOfResidence: profileData.placeOfResidence,
-                        yearOfStudy: profileData.yearOfStudy,
-                        university: profileData.university,
-                        gender: profileData.gender,
-                        maritalStatus: profileData.maritalStatus,
-                        homeParishName: profileData.homeParishName,
-                        homeParishLocation: profileData.homeParishLocation,
-                        schoolResidence: profileData.schoolResidence,
-                    };
-                } else {
-                    // Fallback: use login data and provide defaults for required fields
-                    user = {
-                        id: data._id,
-                        username: data.username,
-                        name: data.name,
-                        email: data.email,
-                        role: data.role,
-                        phoneNumber: '', // Provide defaults
-                        profilePictureUrl: undefined,
-                        dateOfBirth: '',
-                        placeOfBirth: '',
-                        placeOfResidence: '',
-                        yearOfStudy: '',
-                        university: '',
-                        gender: '',
-                        maritalStatus: '',
-                        homeParishName: '',
-                        homeParishLocation: { cell: '', sector: '', district: '' },
-                        schoolResidence: '',
-                    };
-                }
-            } catch (profileError) {
-                console.error('Profile fetch failed, using login data:', profileError);
-                // Fallback: use login data with defaults
-                user = {
-                    id: data._id,
-                    username: data.username,
-                    name: data.name,
-                    email: data.email,
-                    role: data.role,
-                    phoneNumber: '',
-                    profilePictureUrl: undefined,
-                    dateOfBirth: '',
-                    placeOfBirth: '',
-                    placeOfResidence: '',
-                    yearOfStudy: '',
-                    university: '',
-                    gender: '',
-                    maritalStatus: '',
-                    homeParishName: '',
-                    homeParishLocation: { cell: '', sector: '', district: '' },
-                    schoolResidence: '',
-                };
-            }
-
-            setCurrentUser(user);
-            setActiveView(View.DASHBOARD);
-            return true;
-        } catch (error) {
-            console.error('Login error:', error);
-            alert('Network error. Please try again.');
-            return false;
         }
-    };
+
+        // Store token
+        localStorage.setItem('token', data.token);
+
+        // Use the data from login response directly — it has everything!
+        const user: User = {
+            id: data._id || data.id,
+            username: data.username,
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            phoneNumber: data.phoneNumber || '',
+            profilePictureUrl: data.profilePictureUrl || undefined,
+            dateOfBirth: data.dateOfBirth || '',
+            placeOfBirth: data.placeOfBirth || '',
+            placeOfResidence: data.placeOfResidence || '',
+            yearOfStudy: data.yearOfStudy || '',
+            university: data.university || '',
+            gender: data.gender || '',
+            maritalStatus: data.maritalStatus || '',
+            homeParishName: data.homeParishName || '',
+            homeParishLocation: data.homeParishLocation || { cell: '', sector: '', district: '' },
+            schoolResidence: data.schoolResidence || '',
+        };
+
+        setCurrentUser(user);
+        setActiveView(View.DASHBOARD);
+        return true;
+    } catch (error) {
+        console.error('Login error:', error);
+        alert('Network error. Please try again.');
+        return false;
+    }
+};
 
     const handleRegister = async (newUser: User, password: string): Promise<string | null> => {
+        // ... (unchanged)
         try {
             const response = await fetch('http://localhost:5007/api/users/register', {
                 method: 'POST',
@@ -700,6 +658,7 @@ export default function App() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    username: newUser.username,
                     name: newUser.name,
                     email: newUser.email,
                     phoneNumber: newUser.phoneNumber,
@@ -714,6 +673,10 @@ export default function App() {
                     homeParishName: newUser.homeParishName,
                     homeParishLocation: newUser.homeParishLocation,
                     schoolResidence: newUser.schoolResidence,
+                    province: newUser.province,
+                    district: newUser.district,
+                    sector: newUser.sector,
+                    cell: newUser.cell,
                     password: password,
                     role: 'Singer'
                 }),
@@ -725,9 +688,8 @@ export default function App() {
                 return data.message || 'Registration failed';
             }
 
-            // Registration successful
             setAuthView('registration-success');
-            return null; // Success
+            return null;
         } catch (error) {
             console.error('Registration error:', error);
             return 'Network error. Please try again.';
@@ -737,61 +699,7 @@ export default function App() {
     const handleLogout = () => {
         setCurrentUser(null);
         setActiveView(View.DASHBOARD);
-    };
-
-    const handleUpdateUser = (updatedUser: User) => {
-        const updatedUsersList = users.map(u => u.id === updatedUser.id ? updatedUser : u);
-        const usersWithCorrectUsernames = updateUsernames(updatedUsersList);
-        setUsers(usersWithCorrectUsernames);
-
-        const fullyUpdatedCurrentUser = usersWithCorrectUsernames.find(u => u.id === updatedUser.id);
-        if (fullyUpdatedCurrentUser) {
-            setCurrentUser(fullyUpdatedCurrentUser);
-        }
-    };
-
-    const handleAdminAddUser = (userData: Omit<User, 'id' | 'password'>, password: string): string | null => {
-        const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
-        if (existingUser) {
-            return "An account with this email already exists.";
-        }
-        
-        const newUser: User = {
-            ...userData,
-            id: `usr_${new Date().getTime()}`,
-            username: '', 
-            password: password,
-        };
-        const updatedUsers = updateUsernames([...users, newUser]);
-        setUsers(updatedUsers.sort((a,b) => a.name.localeCompare(b.name)));
-        return null; // success
-    };
-    
-    const handleAdminUpdateUser = (updatedUser: User, newPassword?: string) => {
-        const updatedUsersList = users.map(u => {
-            if (u.id === updatedUser.id) {
-                return { ...updatedUser, password: newPassword || u.password };
-            }
-            return u;
-        });
-
-        const usersWithCorrectUsernames = updateUsernames(updatedUsersList);
-        setUsers(usersWithCorrectUsernames);
-
-        if (currentUser && currentUser.id === updatedUser.id) {
-            const fullyUpdatedCurrentUser = usersWithCorrectUsernames.find(u => u.id === updatedUser.id);
-            if (fullyUpdatedCurrentUser) {
-                setCurrentUser(fullyUpdatedCurrentUser);
-            }
-        }
-    };
-
-    const handleAdminDeleteUser = (userId: string) => {
-        if (currentUser && currentUser.id === userId) {
-            alert("You cannot delete your own account.");
-            return;
-        }
-        setUsers(prev => prev.filter(u => u.id !== userId));
+        localStorage.removeItem('token');
     };
 
     const handleAddPermissionRequest = (request: PermissionRequest) => {
@@ -856,6 +764,18 @@ export default function App() {
         }));
     };
 
+    const handleUserApproved = (approvedUser: User) => {
+        // Add to approved users list
+        setUsers(prevUsers => [...prevUsers, approvedUser]);
+        // Remove from pending users list
+        setPendingUsers(prevPending => prevPending.filter(user => user.id !== approvedUser.id));
+    };
+
+    const handleUserRejected = (userId: string) => {
+        // Remove from pending users list
+        setPendingUsers(prevPending => prevPending.filter(user => user.id !== userId));
+    };
+
     if (!currentUser) {
         if (authView === 'login') {
             return <Login onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} />;
@@ -866,15 +786,15 @@ export default function App() {
         }
     }
 
-    // No landing page - users go directly to dashboard
-
     const onMenuClick = () => setIsSidebarOpen(true);
+
+    const approvedUsers = users.filter(u => u.status === 'approved');
 
     const renderContent = () => {
         const commonProps = { onMenuClick };
         switch (activeView) {
             case View.PROFILE:
-                return <Profile user={currentUser} onUpdateUser={handleUpdateUser} {...commonProps} />;
+                return <Profile user={currentUser} onUpdateUser={() => {}} {...commonProps} />;
             case View.DASHBOARD:
                 return <Dashboard 
                             user={currentUser} 
@@ -890,7 +810,7 @@ export default function App() {
             case View.ATTENDANCE_PERFORMANCE:
                 return <Attendance 
                             user={currentUser} 
-                            singers={users} 
+                            singers={approvedUsers} 
                             onNewPermissionRequest={handleAddPermissionRequest}
                             events={events}
                             attendanceRecords={attendanceRecords}
@@ -898,15 +818,15 @@ export default function App() {
                             {...commonProps}
                         />;
             case View.SINGERS:
-                return <Singers singers={users} {...commonProps} />;
+                return <Singers singers={approvedUsers} {...commonProps} />;
             case View.SONGS:
                 return <Songs user={currentUser} {...commonProps} />;
             case View.CREDENTIALS:
                 return <Credentials
                             users={users}
-                            onAddUser={handleAdminAddUser}
-                            onUpdateUser={handleAdminUpdateUser}
-                            onDeleteUser={handleAdminDeleteUser}
+                            pendingUsers={pendingUsers}
+                            onUserApproved={handleUserApproved}
+                            onUserRejected={handleUserRejected}
                             {...commonProps}
                         />;
             default:
