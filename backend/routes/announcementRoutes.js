@@ -7,15 +7,15 @@ const {
     updateAnnouncement,
     deleteAnnouncement
 } = require('../controllers/announcementController');
-const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
+const { authMiddleware, adminMiddleware, songManagerMiddleware } = require('../middleware/authMiddleware');
 
 router.route('/')
     .get(authMiddleware, getAnnouncements)
-    .post(authMiddleware, createAnnouncement);
+    .post(authMiddleware, songManagerMiddleware, createAnnouncement);
 
 router.route('/:id')
     .get(authMiddleware, getAnnouncementById)
-    .put(authMiddleware, adminMiddleware, updateAnnouncement)
-    .delete(authMiddleware, adminMiddleware, deleteAnnouncement);
+    .put(authMiddleware, songManagerMiddleware, updateAnnouncement)
+    .delete(authMiddleware, songManagerMiddleware, deleteAnnouncement);
 
 module.exports = router;

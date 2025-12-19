@@ -6,8 +6,7 @@ const Announcement = require('../models/Announcement');
 const getAnnouncements = async (req, res) => {
     try {
         const announcements = await Announcement.find({})
-            .sort({ date: -1 })
-            .populate('author', 'name');
+            .sort({ date: -1 });
         res.json(announcements);
     } catch (error) {
         console.error(error);
@@ -20,8 +19,7 @@ const getAnnouncements = async (req, res) => {
 // @access  Private
 const getAnnouncementById = async (req, res) => {
     try {
-        const announcement = await Announcement.findById(req.params.id)
-            .populate('author', 'name');
+        const announcement = await Announcement.findById(req.params.id);
 
         if (announcement) {
             res.json(announcement);
@@ -40,7 +38,7 @@ const getAnnouncementById = async (req, res) => {
 const createAnnouncement = async (req, res) => {
     try {
         const { type, title, content } = req.body;
-        const author = req.user.userId;
+        const author = req.user.name || req.user.username; // Use user's name as author
 
         const announcement = await Announcement.create({
             type,

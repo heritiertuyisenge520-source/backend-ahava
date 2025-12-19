@@ -520,26 +520,7 @@ const Singers = ({ singers, onMenuClick }: { singers: User[], onMenuClick?: () =
     );
 };
 
-// --- Event data (fetched from API) ---
-
-const initialAnnouncements: Announcement[] = [
-    {
-        id: 'announcement-2',
-        type: 'general',
-        title: 'Upcoming Special Practice',
-        author: 'Iradukunda Ange Mellisa (Song Conductor)',
-        date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // yesterday
-        content: 'Please note there will be a special practice session this Friday to prepare for the upcoming service.'
-    },
-    {
-        id: 'announcement-1',
-        type: 'general',
-        title: 'Uniforms Ready for Pickup',
-        author: 'TUYISENGE Heritier (President)',
-        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // two days ago
-        content: 'All new members can collect their choir uniforms from the church before the concert.'
-    },
-];
+// --- Announcement data (fetched from API) ---
 
 export default function App() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -547,7 +528,7 @@ export default function App() {
     const [users, setUsers] = useState<User[]>([]); // Real approved users
     const [pendingUsers, setPendingUsers] = useState<User[]>([]); // Real pending users
     const [events, setEvents] = useState<Event[]>([]); // Events fetched from API
-    const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]); // Announcements fetched from API
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, AttendanceStatus>>>({});
     const [activeView, setActiveView] = useState<View>(View.DASHBOARD);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -625,6 +606,38 @@ export default function App() {
                 }
             };
             fetchEvents();
+        }
+    }, [currentUser]);
+
+    // Fetch announcements when user logs in (all authenticated users can see announcements)
+    useEffect(() => {
+        if (currentUser) {
+            const fetchAnnouncements = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
+
+                    // Fetch announcements
+                    const announcementsRes = await fetch('http://localhost:5007/api/announcements', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (announcementsRes.ok) {
+                        const announcementsData = await announcementsRes.json();
+                        const mappedAnnouncements = announcementsData.map((announcement: any) => ({
+                            id: announcement._id,
+                            type: announcement.type,
+                            title: announcement.title,
+                            author: announcement.author,
+                            date: announcement.date,
+                            content: announcement.content
+                        }));
+                        setAnnouncements(mappedAnnouncements);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch announcements:', err);
+                }
+            };
+            fetchAnnouncements();
         }
     }, [currentUser]);
 
@@ -871,29 +884,84 @@ export default function App() {
         }
     };
 
-    const handleSubmitAnnouncement = (announcementData: { title: string; content: string }, editingId: string | null) => {
-        if (editingId) {
-            setAnnouncements(announcements.map(a => 
-                a.id === editingId 
-                ? { ...a, ...announcementData } 
-                : a
-            ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        } else {
-            if (!currentUser) return;
-            const newAnnouncement: Announcement = {
-                id: new Date().toISOString(),
-                type: 'general',
-                author: currentUser.name,
-                date: new Date().toISOString(),
-                ...announcementData,
-            };
-            setAnnouncements(prev => [newAnnouncement, ...prev]
-                .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    const handleSubmitAnnouncement = async (announcementData: { title: string; content: string }, editingId: string | null) => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const method = editingId ? 'PUT' : 'POST';
+            const url = editingId
+                ? `http://localhost:5007/api/announcements/${editingId}`
+                : 'http://localhost:5007/api/announcements';
+
+            const body = editingId
+                ? announcementData
+                : { ...announcementData, type: 'general' };
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (response.ok) {
+                const savedAnnouncement = await response.json();
+
+                if (editingId) {
+                    setAnnouncements(announcements.map(a => a.id === editingId ? {
+                        id: savedAnnouncement._id,
+                        type: savedAnnouncement.type,
+                        title: savedAnnouncement.title,
+                        author: savedAnnouncement.author,
+                        date: savedAnnouncement.date,
+                        content: savedAnnouncement.content
+                    } : a));
+                } else {
+                    const newAnnouncement = {
+                        id: savedAnnouncement._id,
+                        type: savedAnnouncement.type,
+                        title: savedAnnouncement.title,
+                        author: savedAnnouncement.author,
+                        date: savedAnnouncement.date,
+                        content: savedAnnouncement.content
+                    };
+                    setAnnouncements(prev => [newAnnouncement, ...prev]
+                        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                }
+            } else {
+                const errorData = await response.json();
+                alert(errorData.message || 'Failed to save announcement');
+            }
+        } catch (error) {
+            console.error('Failed to save announcement:', error);
+            alert('Failed to save announcement');
         }
     };
 
-    const handleDeleteAnnouncement = (announcementId: string) => {
-        setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
+    const handleDeleteAnnouncement = async (announcementId: string) => {
+        if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await fetch(`http://localhost:5007/api/announcements/${announcementId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
+            } else {
+                alert('Failed to delete announcement');
+            }
+        } catch (error) {
+            console.error('Failed to delete announcement:', error);
+            alert('Failed to delete announcement');
+        }
     };
 
     const handleSaveAttendance = (eventId: string, records: Record<string, AttendanceStatus>) => {
