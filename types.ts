@@ -80,6 +80,8 @@ export interface Announcement {
   author: string;
   date: string; // ISO string
   content: string;
+  startTime?: string; // Optional start time
+  endTime?: string; // Optional end time
 }
 
 export type AttendanceStatus = 'Present' | 'Absent' | 'Excused' | 'No Event';

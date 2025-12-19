@@ -6,6 +6,7 @@ require('dotenv').config();
 const app = express();
 
 const User = require('./models/User');
+const Announcement = require('./models/Announcement');
 const bcrypt = require('bcryptjs');
 
 // Connect to MongoDB
@@ -80,6 +81,28 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Something went wrong!' });
 });
+
+// Function to clean up expired announcements
+const cleanupExpiredAnnouncements = async () => {
+    try {
+        const now = new Date();
+        const result = await Announcement.deleteMany({
+            endTime: { $lte: now, $ne: null }
+        });
+
+        if (result.deletedCount > 0) {
+            console.log(`Cleaned up ${result.deletedCount} expired announcements`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up expired announcements:', error);
+    }
+};
+
+// Run cleanup every hour
+setInterval(cleanupExpiredAnnouncements, 60 * 60 * 1000); // 1 hour in milliseconds
+
+// Also run cleanup on server start
+cleanupExpiredAnnouncements();
 
 const PORT = process.env.PORT || 5000;
 

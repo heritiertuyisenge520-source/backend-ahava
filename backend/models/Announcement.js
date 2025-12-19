@@ -25,6 +25,14 @@ const announcementSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
+    },
+    startTime: {
+        type: Date,
+        required: false
+    },
+    endTime: {
+        type: Date,
+        required: false
     }
 }, {
     timestamps: true

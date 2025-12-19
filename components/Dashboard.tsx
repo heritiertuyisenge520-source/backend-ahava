@@ -16,13 +16,15 @@ import { AddEventModal } from './AddEventModal';
 interface AddAnnouncementModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (announcement: { title: string; content: string }) => void;
+    onSubmit: (announcement: { title: string; content: string; startTime?: string; endTime?: string }) => void;
     announcementToEdit: Announcement | null;
 }
 
 const AddAnnouncementModal = ({ isOpen, onClose, onSubmit, announcementToEdit }: AddAnnouncementModalProps) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -30,9 +32,13 @@ const AddAnnouncementModal = ({ isOpen, onClose, onSubmit, announcementToEdit }:
             if (announcementToEdit) {
                 setTitle(announcementToEdit.title);
                 setContent(announcementToEdit.content);
+                setStartTime(announcementToEdit.startTime || '');
+                setEndTime(announcementToEdit.endTime || '');
             } else {
                 setTitle('');
                 setContent('');
+                setStartTime('');
+                setEndTime('');
             }
         }
     }, [isOpen, announcementToEdit]);
@@ -55,7 +61,7 @@ const AddAnnouncementModal = ({ isOpen, onClose, onSubmit, announcementToEdit }:
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit({ title, content });
+        onSubmit({ title, content, startTime: startTime || undefined, endTime: endTime || undefined });
     };
 
     const modalTitle = announcementToEdit ? 'Edit Announcement' : 'Add New Announcement';
@@ -95,6 +101,26 @@ const AddAnnouncementModal = ({ isOpen, onClose, onSubmit, announcementToEdit }:
                                 placeholder="Enter the announcement details here..."
                                 className="mt-1 block w-full px-3 py-2 bg-ahava-purple-dark border border-ahava-purple-medium rounded-md shadow-sm text-gray-200 focus:outline-none focus:ring-ahava-magenta focus:border-ahava-magenta"
                             ></textarea>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="startTime" className="block text-sm font-medium text-gray-300">Start Time (Optional)</label>
+                                <input
+                                    type="datetime-local" id="startTime" value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
+                                    className="mt-1 block w-full px-3 py-2 bg-ahava-purple-dark border border-ahava-purple-medium rounded-md shadow-sm text-gray-200 focus:outline-none focus:ring-ahava-magenta focus:border-ahava-magenta"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">When should this announcement become visible?</p>
+                            </div>
+                            <div>
+                                <label htmlFor="endTime" className="block text-sm font-medium text-gray-300">End Time (Optional)</label>
+                                <input
+                                    type="datetime-local" id="endTime" value={endTime}
+                                    onChange={(e) => setEndTime(e.target.value)}
+                                    className="mt-1 block w-full px-3 py-2 bg-ahava-purple-dark border border-ahava-purple-medium rounded-md shadow-sm text-gray-200 focus:outline-none focus:ring-ahava-magenta focus:border-ahava-magenta"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">When should this announcement expire?</p>
+                            </div>
                         </div>
                     </div>
                     <div className="mt-8 flex justify-end space-x-3">
@@ -268,14 +294,68 @@ interface AnnouncementListItemProps {
 }
 
 const AnnouncementListItem: React.FC<AnnouncementListItemProps> = ({ announcement, onEdit, onDelete, canManage }) => {
+    const now = new Date();
+    const startTime = announcement.startTime ? new Date(announcement.startTime) : null;
+    const endTime = announcement.endTime ? new Date(announcement.endTime) : null;
+
+    const isScheduled = startTime && startTime > now;
+    const isExpired = endTime && endTime < now;
+    const isActive = !isScheduled && !isExpired;
+
+    const getStatusInfo = () => {
+        if (isScheduled) {
+            return {
+                text: `Visible ${startTime.toLocaleDateString()} at ${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+                className: 'text-blue-400'
+            };
+        } else if (isExpired) {
+            return {
+                text: `Expired ${endTime.toLocaleDateString()}`,
+                className: 'text-red-400'
+            };
+        } else if (endTime) {
+            return {
+                text: `Expires ${endTime.toLocaleDateString()} at ${endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+                className: 'text-yellow-400'
+            };
+        }
+        return null;
+    };
+
+    const statusInfo = getStatusInfo();
+
     return (
-        <div className="bg-ahava-surface p-4 rounded-lg shadow-sm flex items-start justify-between hover:shadow-md transition-shadow space-x-4 border border-ahava-purple-dark hover:border-ahava-purple-medium">
+        <div className={`bg-ahava-surface p-4 rounded-lg shadow-sm flex items-start justify-between hover:shadow-md transition-shadow space-x-4 border ${
+            isExpired ? 'border-red-500/50 opacity-75' :
+            isScheduled ? 'border-blue-500/50' :
+            'border-ahava-purple-dark hover:border-ahava-purple-medium'
+        }`}>
             <div className="flex-1">
-                <p className="font-semibold text-gray-100">{announcement.title}</p>
+                <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-gray-100">{announcement.title}</p>
+                    {isActive && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                            Active
+                        </span>
+                    )}
+                    {isScheduled && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            Scheduled
+                        </span>
+                    )}
+                    {isExpired && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                            Expired
+                        </span>
+                    )}
+                </div>
                 <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{announcement.content}</p>
-                <p className="text-xs text-gray-500 mt-2">
-                    By {announcement.author} &bull; {new Date(announcement.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </p>
+                <div className="text-xs text-gray-500 mt-2 space-y-1">
+                    <p>By {announcement.author} &bull; {new Date(announcement.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    {statusInfo && (
+                        <p className={statusInfo.className}>{statusInfo.text}</p>
+                    )}
+                </div>
             </div>
             {canManage && announcement.type === 'general' && (
                 <div className="flex flex-col items-center space-y-2">
