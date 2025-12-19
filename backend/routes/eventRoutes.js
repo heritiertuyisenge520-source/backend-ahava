@@ -7,15 +7,15 @@ const {
     updateEvent,
     deleteEvent
 } = require('../controllers/eventController');
-const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
+const { authMiddleware, adminMiddleware, songManagerMiddleware } = require('../middleware/authMiddleware');
 
 router.route('/')
     .get(authMiddleware, getEvents)
-    .post(authMiddleware, adminMiddleware, createEvent);
+    .post(authMiddleware, songManagerMiddleware, createEvent);
 
 router.route('/:id')
     .get(authMiddleware, getEventById)
-    .put(authMiddleware, adminMiddleware, updateEvent)
-    .delete(authMiddleware, adminMiddleware, deleteEvent);
+    .put(authMiddleware, songManagerMiddleware, updateEvent)
+    .delete(authMiddleware, songManagerMiddleware, deleteEvent);
 
 module.exports = router;

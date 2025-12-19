@@ -375,6 +375,24 @@ const getPendingUsers = async (req, res) => {
     }
 };
 
+// @desc    Get approved singers (all authenticated users)
+// @route   GET /api/users/singers
+// @access  Private
+const getSingers = async (req, res) => {
+    try {
+        console.log('getSingers called - user:', req.user.name, 'role:', req.user.role);
+        const singers = await User.find({ status: 'approved' }).select('-password');
+        console.log('Found singers:', singers ? singers.length : 'null/undefined');
+        console.log('First singer sample:', singers && singers.length > 0 ? JSON.stringify(singers[0]) : 'no singers');
+        res.json(singers || []);
+    } catch (error) {
+        console.error('getSingers error:', error);
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -386,5 +404,6 @@ module.exports = {
     updateUser,
     approveUser,
     rejectUser,
-    getPendingUsers
+    getPendingUsers,
+    getSingers
 };

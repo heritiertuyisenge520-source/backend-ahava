@@ -9,7 +9,8 @@ const {
     updateUser,
     approveUser,
     rejectUser,
-    getPendingUsers
+    getPendingUsers,
+    getSingers
 } = require('../controllers/userController');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
@@ -20,6 +21,10 @@ router.post('/login', loginUser);
 // Protected routes – only logged-in user can see/update their own profile
 // We will use the login response data – no need for separate /profile route anymore
 // So we remove this completely to stop the 404 error
+
+// Singers route – all authenticated users can view approved singers
+// Must be placed BEFORE /:id routes to avoid route conflicts
+router.get('/singers', authMiddleware, getSingers);
 
 // Admin routes – only President or Advisor
 router.get('/', authMiddleware, adminMiddleware, getUsers);

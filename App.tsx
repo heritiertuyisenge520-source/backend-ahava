@@ -42,36 +42,7 @@ const RegistrationSuccess = ({ onSwitchToLogin }: { onSwitchToLogin: () => void 
 };
 
 
-// --- Songs Page Components (unchanged) ---
-
-const initialSongs: Song[] = [
-    { 
-        id: '1', 
-        title: 'Niwowe Rutare', 
-        composer: 'Fr. Jean Hakulimana', 
-        lyrics: `Verse 1:
-Niwowe rutare rwanjye, nkwihishaho Nyagasani.
-Mu bibazo no mu byago, ni wowe buhungiro bwanjye.
-
-Chorus:
-Alleluia, Alleluia, waratsinze, Yesu Mwami.
-Izina ryawe rihabwe icyubahiro, iteka ryose. Amina.`
-    },
-    { 
-        id: '2', 
-        title: 'Roho W\'Imana', 
-        composer: 'Unknown', 
-        lyrics: `Verse 1:
-Roho w'Imana, ngwino muri twe,
-Uze utuyobore, utumurikire.
-Uduhe imbaraga, zo kugukorera,
-No kugusingiza, mu buzima bwacu.
-
-Chorus:
-Ngwino, Roho w'Imana, ngwino!
-Uze uturememo, imitima mishya.`
-    },
-];
+// --- Songs Page Components ---
 
 interface AddSongModalProps {
     isOpen: boolean;
@@ -284,12 +255,44 @@ const SongDetailView = ({ song, onBack }: { song: Song, onBack: () => void }) =>
 
 
 const Songs = ({ user, onMenuClick }: { user: User, onMenuClick?: () => void }) => {
-    const [songs, setSongs] = useState<Song[]>(initialSongs);
+    const [songs, setSongs] = useState<Song[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSong, setEditingSong] = useState<Song | null>(null);
     const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const canManageSongs = user.role === 'Song Conductor' || user.role === 'President';
+    const canManageSongs = user.role === 'Song Conductor' || user.role === 'President' || user.role === 'Advisor';
+
+    // Fetch songs from API
+    useEffect(() => {
+        const fetchSongs = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch('http://localhost:5007/api/songs', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const songsData = await response.json();
+                    const mappedSongs = songsData.map((song: any) => ({
+                        id: song._id,
+                        title: song.title,
+                        composer: song.composer,
+                        lyrics: song.lyrics
+                    }));
+                    setSongs(mappedSongs);
+                }
+            } catch (error) {
+                console.error('Failed to fetch songs:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSongs();
+    }, []);
 
     const handleOpenAddModal = () => {
         setEditingSong(null);
@@ -300,25 +303,78 @@ const Songs = ({ user, onMenuClick }: { user: User, onMenuClick?: () => void }) 
         setEditingSong(song);
         setIsModalOpen(true);
     };
-    
-    const handleDeleteSong = (songId: string) => {
-        if (window.confirm('Are you sure you want to delete this song?')) {
-            setSongs(prevSongs => prevSongs.filter(song => song.id !== songId));
+
+    const handleDeleteSong = async (songId: string) => {
+        if (!window.confirm('Are you sure you want to delete this song?')) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await fetch(`http://localhost:5007/api/songs/${songId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                setSongs(prevSongs => prevSongs.filter(song => song.id !== songId));
+            } else {
+                alert('Failed to delete song');
+            }
+        } catch (error) {
+            console.error('Failed to delete song:', error);
+            alert('Failed to delete song');
         }
     };
 
-    const handleSubmitSong = (songData: Omit<Song, 'id'>) => {
-        if (editingSong) {
-            setSongs(songs.map(s => s.id === editingSong.id ? { ...s, ...songData, id: s.id } : s));
-        } else {
-            const newSong: Song = {
-                id: new Date().toISOString(),
-                ...songData,
-            };
-            setSongs(prevSongs => [newSong, ...prevSongs]);
+    const handleSubmitSong = async (songData: Omit<Song, 'id'>) => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const method = editingSong ? 'PUT' : 'POST';
+            const url = editingSong
+                ? `http://localhost:5007/api/songs/${editingSong.id}`
+                : 'http://localhost:5007/api/songs';
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(songData)
+            });
+
+            if (response.ok) {
+                const savedSong = await response.json();
+
+                if (editingSong) {
+                    setSongs(songs.map(s => s.id === editingSong.id ? {
+                        id: savedSong._id,
+                        title: savedSong.title,
+                        composer: savedSong.composer,
+                        lyrics: savedSong.lyrics
+                    } : s));
+                } else {
+                    const newSong = {
+                        id: savedSong._id,
+                        title: savedSong.title,
+                        composer: savedSong.composer,
+                        lyrics: savedSong.lyrics
+                    };
+                    setSongs(prevSongs => [newSong, ...prevSongs]);
+                }
+                setIsModalOpen(false);
+                setEditingSong(null);
+            } else {
+                const errorData = await response.json();
+                alert(errorData.message || 'Failed to save song');
+            }
+        } catch (error) {
+            console.error('Failed to save song:', error);
+            alert('Failed to save song');
         }
-        setIsModalOpen(false);
-        setEditingSong(null);
     };
 
     const AddSongButton = () => (
@@ -464,29 +520,7 @@ const Singers = ({ singers, onMenuClick }: { singers: User[], onMenuClick?: () =
     );
 };
 
-// --- Hardcoded data (events, announcements) kept as-is ---
-const today = new Date();
-const yesterday = new Date();
-yesterday.setDate(today.getDate() - 1);
-const twoDaysAgo = new Date(today);
-twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-
-const futureDate = new Date();
-futureDate.setDate(today.getDate() + 2);
-const farFutureDate = new Date();
-farFutureDate.setDate(today.getDate() + 10);
-
-const startOfToday = new Date(today);
-startOfToday.setHours(today.getHours() - 1, 0, 0, 0);
-const endOfToday = new Date(today);
-endOfToday.setHours(today.getHours() + 1, 0, 0, 0);
-
-const initialEvents: Event[] = [
-    { id: '1', name: 'Saturday Vigil Service', type: 'Service', date: yesterday.toISOString().split('T')[0], startTime: '17:00', endTime: '18:30' },
-    { id: '2', name: 'Ongoing Weekly Practice', type: 'Practice', date: today.toISOString().split('T')[0], startTime: startOfToday.toTimeString().substring(0,5), endTime: endOfToday.toTimeString().substring(0,5) },
-    { id: '3', name: 'Future Practice Session', type: 'Practice', date: futureDate.toISOString().split('T')[0], startTime: '10:00', endTime: '12:00' },
-    { id: '4', name: 'Rehearsal', type: 'Practice', date: farFutureDate.toISOString().split('T')[0], startTime: '14:19', endTime: '14:49' },
-];
+// --- Event data (fetched from API) ---
 
 const initialAnnouncements: Announcement[] = [
     {
@@ -494,7 +528,7 @@ const initialAnnouncements: Announcement[] = [
         type: 'general',
         title: 'Upcoming Special Practice',
         author: 'Iradukunda Ange Mellisa (Song Conductor)',
-        date: yesterday.toISOString(),
+        date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // yesterday
         content: 'Please note there will be a special practice session this Friday to prepare for the upcoming service.'
     },
     {
@@ -502,7 +536,7 @@ const initialAnnouncements: Announcement[] = [
         type: 'general',
         title: 'Uniforms Ready for Pickup',
         author: 'TUYISENGE Heritier (President)',
-        date: twoDaysAgo.toISOString(),
+        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // two days ago
         content: 'All new members can collect their choir uniforms from the church before the concert.'
     },
 ];
@@ -512,27 +546,27 @@ export default function App() {
     const [authView, setAuthView] = useState<'login' | 'register' | 'registration-success'>('register');
     const [users, setUsers] = useState<User[]>([]); // Real approved users
     const [pendingUsers, setPendingUsers] = useState<User[]>([]); // Real pending users
-    const [events, setEvents] = useState<Event[]>(initialEvents);
+    const [events, setEvents] = useState<Event[]>([]); // Events fetched from API
     const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, AttendanceStatus>>>({});
     const [activeView, setActiveView] = useState<View>(View.DASHBOARD);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Fetch real users and pending users when admin logs in
+    // Fetch approved singers when user logs in (all authenticated users can see singers)
     useEffect(() => {
-        if (currentUser && (currentUser.role === 'President' || currentUser.role === 'Advisor')) {
-            const fetchUsers = async () => {
+        if (currentUser) {
+            const fetchSingers = async () => {
                 try {
                     const token = localStorage.getItem('token');
                     if (!token) return;
 
-                    // Fetch all approved users
-                    const usersRes = await fetch('http://localhost:5007/api/users', {
+                    // Fetch approved singers
+                    const singersRes = await fetch('http://localhost:5007/api/users/singers', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (usersRes.ok) {
-                        const usersData = await usersRes.json();
-                        const mappedUsers = usersData.map((user: any) => ({
+                    if (singersRes.ok) {
+                        const singersData = await singersRes.json();
+                        const mappedSingers = singersData.map((user: any) => ({
                             id: user._id,
                             username: user.username,
                             name: user.name,
@@ -552,8 +586,55 @@ export default function App() {
                             schoolResidence: user.schoolResidence || '',
                             status: user.status,
                         }));
-                        setUsers(mappedUsers);
+                        setUsers(mappedSingers);
                     }
+                } catch (err) {
+                    console.error('Failed to fetch singers:', err);
+                }
+            };
+            fetchSingers();
+        }
+    }, [currentUser]);
+
+    // Fetch events when user logs in (all authenticated users can see events)
+    useEffect(() => {
+        if (currentUser) {
+            const fetchEvents = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
+
+                    // Fetch events
+                    const eventsRes = await fetch('http://localhost:5007/api/events', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (eventsRes.ok) {
+                        const eventsData = await eventsRes.json();
+                        const mappedEvents = eventsData.map((event: any) => ({
+                            id: event._id,
+                            name: event.name,
+                            type: event.type,
+                            date: event.date,
+                            startTime: event.startTime,
+                            endTime: event.endTime
+                        }));
+                        setEvents(mappedEvents);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch events:', err);
+                }
+            };
+            fetchEvents();
+        }
+    }, [currentUser]);
+
+    // Fetch pending users when admin logs in (only President or Advisor)
+    useEffect(() => {
+        if (currentUser && (currentUser.role === 'President' || currentUser.role === 'Advisor')) {
+            const fetchPendingUsers = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
 
                     // Fetch pending users
                     const pendingRes = await fetch('http://localhost:5007/api/users/pending', {
@@ -583,10 +664,10 @@ export default function App() {
                         setPendingUsers(mappedPendingUsers);
                     }
                 } catch (err) {
-                    console.error('Failed to fetch users:', err);
+                    console.error('Failed to fetch pending users:', err);
                 }
             };
-            fetchUsers();
+            fetchPendingUsers();
         }
     }, [currentUser]);
 
@@ -714,22 +795,80 @@ export default function App() {
         setAnnouncements(prevAnnouncements => [newAnnouncement, ...prevAnnouncements]);
     };
 
-    const handleSubmitEvent = (eventData: Omit<Event, 'id'>, editingId: string | null) => {
-        if (editingId) {
-            setEvents(events.map(e => e.id === editingId ? { ...e, ...eventData, id: e.id } : e)
-                .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        } else {
-            const newEvent: Event = {
-                id: new Date().toISOString(),
-                ...eventData,
-            };
-            setEvents(prevEvents => [newEvent, ...prevEvents]
-                .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    const handleSubmitEvent = async (eventData: Omit<Event, 'id'>, editingId: string | null) => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const method = editingId ? 'PUT' : 'POST';
+            const url = editingId
+                ? `http://localhost:5007/api/events/${editingId}`
+                : 'http://localhost:5007/api/events';
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(eventData)
+            });
+
+            if (response.ok) {
+                const savedEvent = await response.json();
+
+                if (editingId) {
+                    setEvents(events.map(e => e.id === editingId ? {
+                        id: savedEvent._id,
+                        name: savedEvent.name,
+                        type: savedEvent.type,
+                        date: savedEvent.date,
+                        startTime: savedEvent.startTime,
+                        endTime: savedEvent.endTime
+                    } : e));
+                } else {
+                    const newEvent = {
+                        id: savedEvent._id,
+                        name: savedEvent.name,
+                        type: savedEvent.type,
+                        date: savedEvent.date,
+                        startTime: savedEvent.startTime,
+                        endTime: savedEvent.endTime
+                    };
+                    setEvents(prevEvents => [newEvent, ...prevEvents]
+                        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                }
+            } else {
+                const errorData = await response.json();
+                alert(errorData.message || 'Failed to save event');
+            }
+        } catch (error) {
+            console.error('Failed to save event:', error);
+            alert('Failed to save event');
         }
     };
 
-    const handleDeleteEvent = (eventId: string) => {
-        setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+    const handleDeleteEvent = async (eventId: string) => {
+        if (!window.confirm('Are you sure you want to delete this event?')) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await fetch(`http://localhost:5007/api/events/${eventId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+            } else {
+                alert('Failed to delete event');
+            }
+        } catch (error) {
+            console.error('Failed to delete event:', error);
+            alert('Failed to delete event');
+        }
     };
 
     const handleSubmitAnnouncement = (announcementData: { title: string; content: string }, editingId: string | null) => {
