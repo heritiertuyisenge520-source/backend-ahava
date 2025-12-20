@@ -1,11 +1,40 @@
 const Event = require('../models/Event');
 
+// Helper function to clean up past events
+const cleanupPastEvents = async () => {
+    try {
+        const currentDate = new Date().toISOString().split('T')[0];
+        const result = await Event.deleteMany({ date: { $lt: currentDate } });
+        if (result.deletedCount > 0) {
+            console.log(`Cleaned up ${result.deletedCount} past events`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up past events:', error);
+    }
+};
+
 // @desc    Get all events
 // @route   GET /api/events
 // @access  Private
 const getEvents = async (req, res) => {
     try {
-        const events = await Event.find({}).sort({ date: -1, startTime: -1 });
+        // First, clean up past events
+        await cleanupPastEvents();
+
+        // Get current date in YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
+
+        // Find events that are today or in the future
+        const events = await Event.find({
+            $or: [
+                { date: { $gt: today } }, // Future dates
+                {
+                    date: today,
+                    endTime: { $gte: new Date().toTimeString().slice(0, 5) } // Today but end time hasn't passed
+                }
+            ]
+        }).sort({ date: 1, startTime: 1 }); // Sort by date ascending, then time ascending
+
         res.json(events);
     } catch (error) {
         console.error(error);

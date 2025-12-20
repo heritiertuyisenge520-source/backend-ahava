@@ -2,12 +2,35 @@ const Attendance = require('../models/Attendance');
 const Event = require('../models/Event');
 const User = require('../models/User');
 
+// Helper function to clean up attendance records for past events
+const cleanupPastAttendance = async () => {
+    try {
+        const currentDate = new Date().toISOString().split('T')[0];
+
+        // Find all past events
+        const pastEvents = await Event.find({ date: { $lt: currentDate } });
+
+        if (pastEvents.length > 0) {
+            const pastEventIds = pastEvents.map(event => event._id);
+            const result = await Attendance.deleteMany({ eventId: { $in: pastEventIds } });
+            if (result.deletedCount > 0) {
+                console.log(`Cleaned up ${result.deletedCount} attendance records for past events`);
+            }
+        }
+    } catch (error) {
+        console.error('Error cleaning up past attendance records:', error);
+    }
+};
+
 // @desc    Get attendance records for an event
 // @route   GET /api/attendances/event/:eventId
 // @access  Private
 const getAttendanceByEvent = async (req, res) => {
     try {
         const { eventId } = req.params;
+
+        // Clean up past attendance records
+        await cleanupPastAttendance();
 
         const attendanceRecords = await Attendance.find({ eventId })
             .populate('userId', 'name username role')

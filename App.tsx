@@ -1003,11 +1003,11 @@ export default function App() {
             case View.PROFILE:
                 return <Profile user={currentUser} onUpdateUser={() => {}} {...commonProps} />;
             case View.DASHBOARD:
-                return <Dashboard 
-                            user={currentUser} 
-                            announcements={announcements} 
-                            setActiveView={setActiveView} 
-                            events={events} 
+                return <Dashboard
+                            user={currentUser}
+                            announcements={announcements}
+                            setActiveView={setActiveView}
+                            events={events}
                             onSubmitEvent={handleSubmitEvent}
                             onDeleteEvent={handleDeleteEvent}
                             onSubmitAnnouncement={handleSubmitAnnouncement}
@@ -1015,9 +1015,9 @@ export default function App() {
                             {...commonProps}
                         />;
             case View.ATTENDANCE_PERFORMANCE:
-                return <Attendance 
-                            user={currentUser} 
-                            singers={approvedUsers} 
+                return <Attendance
+                            user={currentUser}
+                            singers={approvedUsers}
                             onNewPermissionRequest={handleAddPermissionRequest}
                             events={events}
                             attendanceRecords={attendanceRecords}
@@ -1037,10 +1037,10 @@ export default function App() {
                             {...commonProps}
                         />;
             default:
-                return <Dashboard 
-                            user={currentUser} 
-                            announcements={announcements} 
-                            setActiveView={setActiveView} 
+                return <Dashboard
+                            user={currentUser}
+                            announcements={announcements}
+                            setActiveView={setActiveView}
                             events={events}
                             onSubmitEvent={handleSubmitEvent}
                             onDeleteEvent={handleDeleteEvent}

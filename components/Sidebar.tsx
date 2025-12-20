@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { View, User } from '../types';
-import { ProfileIcon, DashboardIcon, SingersIcon, SongsIcon, EventsIcon, ChartBarIcon, LogoutIcon, KeyIcon } from './Icons';
+import { ProfileIcon, DashboardIcon, SingersIcon, SongsIcon, EventsIcon, ChartBarIcon, LogoutIcon, KeyIcon, CardIcon } from './Icons';
 
 interface SidebarProps {
     activeView: View;
