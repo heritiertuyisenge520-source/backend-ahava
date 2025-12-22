@@ -34,15 +34,35 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => 
 );
 
 export const Sidebar = ({ activeView, setActiveView, user, onLogout, isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
-    const navItems = [
+    // Define base navigation items that all users can see
+    const baseNavItems = [
         { id: View.DASHBOARD, label: 'DASHBOARD', icon: <DashboardIcon /> },
-        { id: View.ATTENDANCE_PERFORMANCE, label: 'ATTENDANCE', icon: <ChartBarIcon /> },
-        { id: View.SINGERS, label: 'SINGERS', icon: <SingersIcon /> },
-        { id: View.SONGS, label: 'SONGS', icon: <SongsIcon /> },
         { id: View.PROFILE, label: 'PROFILE', icon: <ProfileIcon /> },
     ];
 
-    const canManageCredentials = user.role === 'President';
+    // Role-specific navigation items
+    const roleBasedNavItems = [];
+
+    // Attendance access for President, Secretary, Advisor, and Singers
+    if (['President', 'Secretary', 'Advisor', 'Singer'].includes(user.role)) {
+        roleBasedNavItems.push({ id: View.ATTENDANCE_PERFORMANCE, label: 'ATTENDANCE', icon: <ChartBarIcon /> });
+    }
+
+    // Singers access for all except Accountant
+    if (user.role !== 'Accountant') {
+        roleBasedNavItems.push({ id: View.SINGERS, label: 'SINGERS', icon: <SingersIcon /> });
+    }
+
+    // Songs access for President, Song Conductor, Advisor, and Singers
+    if (['President', 'Song Conductor', 'Advisor', 'Singer'].includes(user.role)) {
+        roleBasedNavItems.push({ id: View.SONGS, label: 'SONGS', icon: <SongsIcon /> });
+    }
+
+    // Combine base and role-based items
+    const navItems = [...baseNavItems, ...roleBasedNavItems];
+
+    const canManageCredentials = user.role === 'President' || user.role === 'Advisor' || user.role === 'Accountant';
+    const canManagePermissions = ['President', 'Secretary', 'Advisor'].includes(user.role);
 
     const getInitials = (name: string) => {
         const names = name.split(' ');
@@ -83,6 +103,15 @@ export const Sidebar = ({ activeView, setActiveView, user, onLogout, isSidebarOp
                             onClick={() => setActiveView(item.id)}
                         />
                     ))}
+                    {canManagePermissions && (
+                        <NavItem
+                            key={View.PERMISSIONS}
+                            icon={<CardIcon className="h-5 w-5" />}
+                            label="PERMISSIONS"
+                            isActive={activeView === View.PERMISSIONS}
+                            onClick={() => setActiveView(View.PERMISSIONS)}
+                        />
+                    )}
                     {canManageCredentials && (
                         <NavItem
                             key={View.CREDENTIALS}

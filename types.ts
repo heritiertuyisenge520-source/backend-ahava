@@ -6,9 +6,10 @@ export enum View {
   SINGERS = 'SINGERS',
   SONGS = 'SONGS',
   CREDENTIALS = 'CREDENTIALS',
+  PERMISSIONS = 'PERMISSIONS',
 }
 
-export type Role = 'Singer' | 'Advisor' | 'President' | 'Song Conductor';
+export type Role = 'Singer' | 'Advisor' | 'President' | 'Song Conductor' | 'Secretary' | 'Accountant';
 
 export interface User {
     id: string;

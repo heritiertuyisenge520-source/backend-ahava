@@ -478,7 +478,69 @@ const BibleVerseCard = () => {
 
 
 const AttendanceSummaryCard = () => {
-    const percentage = 65; // Mock percentage for warning
+    const [attendanceData, setAttendanceData] = useState<{
+        Present: number;
+        Absent: number;
+        Excused: number;
+        totalEvents: number;
+        percentage: number;
+    } | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchAttendanceData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch('http://localhost:5007/api/attendances/summaries', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const summaries = await response.json();
+
+                    // Calculate overall choir attendance
+                    let totalPresent = 0;
+                    let totalAbsent = 0;
+                    let totalExcused = 0;
+                    let totalEvents = 0;
+                    let memberCount = 0;
+
+                    Object.values(summaries).forEach((memberData: any) => {
+                        totalPresent += memberData.Present || 0;
+                        totalAbsent += memberData.Absent || 0;
+                        totalExcused += memberData.Excused || 0;
+                        totalEvents = Math.max(totalEvents, memberData.totalEvents || 0);
+                        memberCount++;
+                    });
+
+                    // Calculate average attendance percentage
+                    const totalPossible = totalEvents * memberCount;
+                    const totalAttended = totalPresent + totalExcused;
+                    const averagePercentage = totalPossible > 0
+                        ? Math.round((totalAttended / totalPossible) * 100)
+                        : 0;
+
+                    setAttendanceData({
+                        Present: totalPresent,
+                        Absent: totalAbsent,
+                        Excused: totalExcused,
+                        totalEvents: totalEvents,
+                        percentage: averagePercentage
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch attendance data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAttendanceData();
+    }, []);
+
+    const percentage = attendanceData?.percentage || 0;
 
     const { colorClass, message } = useMemo(() => {
         if (percentage >= 85) {
@@ -493,12 +555,29 @@ const AttendanceSummaryCard = () => {
     const circumference = 2 * Math.PI * 48; // 2 * pi * r
     const offset = circumference - (percentage / 100) * circumference;
 
+    if (loading) {
+        return (
+            <div className="bg-ahava-surface p-6 rounded-lg shadow-md flex items-center justify-center h-full border border-ahava-purple-dark">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ahava-purple-light mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-400">Loading attendance data...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-ahava-surface p-6 rounded-lg shadow-md flex items-center justify-between h-full border border-ahava-purple-dark">
             <div className="flex-1 pr-4">
                 <h3 className="text-lg font-semibold text-gray-100">Overall Attendance</h3>
                 <p className="text-sm text-gray-400 mb-3">Based on past events</p>
                 <p className={`text-sm font-semibold ${colorClass}`}>{message}</p>
+                {attendanceData && (
+                    <div className="mt-3 text-xs text-gray-500 space-y-1">
+                        <p>Total Events: {attendanceData.totalEvents}</p>
+                        <p>Present: {attendanceData.Present} | Absent: {attendanceData.Absent} | Excused: {attendanceData.Excused}</p>
+                    </div>
+                )}
             </div>
             <div className="relative flex-shrink-0">
                 <svg className="w-28 h-28 transform -rotate-90">
@@ -642,7 +721,8 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
     const [reminders, setReminders] = useState<Record<string, string>>({});
     const timeoutRefs = useRef<Record<string, number>>({});
 
-    const canManage = user?.role === 'President' || user?.role === 'Song Conductor';
+    const canManageEvents = user?.role === 'President' || user?.role === 'Advisor';
+    const canManageAnnouncements = user?.role === 'President' || user?.role === 'Advisor';
 
     const handleSetReminder = (eventId: string, reminderValue: string | null) => {
         if (timeoutRefs.current[eventId]) {
@@ -785,7 +865,7 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
                 breadcrumbs={['Dashboard']}
                 title={`Welcome, ${user.name.split(' ')[0]}!`}
                 titleIcon={<DashboardIcon className="h-6 w-6" />}
-                actionButton={canManage ? <ActionButtons /> : undefined}
+                actionButton={(canManageEvents || canManageAnnouncements) ? <ActionButtons /> : undefined}
                 onMenuClick={onMenuClick}
             />
             <div className="p-4 md:p-8">

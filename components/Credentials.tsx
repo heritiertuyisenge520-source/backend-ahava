@@ -89,7 +89,9 @@ const PendingUserCard: React.FC<PendingUserCardProps> = ({ user, onApprove, onRe
                             className="px-3 py-1 bg-ahava-purple-dark border border-ahava-purple-medium rounded-md text-gray-200 focus:outline-none focus:ring-ahava-magenta focus:border-ahava-magenta text-sm"
                         >
                             <option value="Singer">Singer</option>
+                            <option value="Secretary">Secretary</option>
                             <option value="Song Conductor">Song Conductor</option>
+                            <option value="Accountant">Accountant</option>
                             <option value="Advisor">Advisor</option>
                             <option value="President">President</option>
                         </select>
@@ -120,9 +122,25 @@ const PendingUserCard: React.FC<PendingUserCardProps> = ({ user, onApprove, onRe
 // --- User List Item (for approved users) ---
 interface UserListItemProps {
     user: User;
+    onRoleChange: (userId: string, newRole: Role) => void;
 }
 
-const UserListItem: React.FC<UserListItemProps> = ({ user }) => {
+const UserListItem: React.FC<UserListItemProps> = ({ user, onRoleChange }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [selectedRole, setSelectedRole] = useState<Role>(user.role);
+
+    const handleRoleUpdate = () => {
+        if (selectedRole !== user.role) {
+            onRoleChange(user.id, selectedRole);
+        }
+        setIsEditing(false);
+    };
+
+    const handleCancel = () => {
+        setSelectedRole(user.role);
+        setIsEditing(false);
+    };
+
     return (
         <div className="bg-ahava-background p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-ahava-purple-dark/30 transition-colors gap-3 sm:gap-2">
             <div className="flex-1 w-full sm:w-auto">
@@ -130,7 +148,44 @@ const UserListItem: React.FC<UserListItemProps> = ({ user }) => {
                 <p className="text-sm text-gray-400">{user.email}</p>
             </div>
             <div className="flex items-center justify-between sm:justify-end space-x-4 w-full sm:w-auto">
-                <span className="text-sm font-medium text-ahava-purple-light bg-ahava-purple-dark/50 px-3 py-1 rounded-full">{user.role}</span>
+                {isEditing ? (
+                    <div className="flex items-center space-x-2">
+                        <select
+                            value={selectedRole}
+                            onChange={(e) => setSelectedRole(e.target.value as Role)}
+                            className="px-2 py-1 bg-ahava-purple-dark border border-ahava-purple-medium rounded-md text-gray-200 text-sm focus:outline-none focus:ring-ahava-magenta focus:border-ahava-magenta"
+                        >
+                            <option value="Singer">Singer</option>
+                            <option value="Secretary">Secretary</option>
+                            <option value="Song Conductor">Song Conductor</option>
+                            <option value="Accountant">Accountant</option>
+                            <option value="Advisor">Advisor</option>
+                            <option value="President">President</option>
+                        </select>
+                        <button
+                            onClick={handleRoleUpdate}
+                            className="text-green-400 hover:text-green-300 text-sm font-medium"
+                        >
+                            Save
+                        </button>
+                        <button
+                            onClick={handleCancel}
+                            className="text-gray-400 hover:text-gray-300 text-sm"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <span className="text-sm font-medium text-ahava-purple-light bg-ahava-purple-dark/50 px-3 py-1 rounded-full">{user.role}</span>
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="text-gray-400 hover:text-ahava-purple-light text-sm"
+                        >
+                            <PencilIcon className="w-4 h-4" />
+                        </button>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -230,6 +285,32 @@ export const Credentials: React.FC<CredentialsProps> = ({ users, pendingUsers, o
         }
     };
 
+    const handleRoleChange = async (userId: string, newRole: Role) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:5007/api/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ role: newRole }),
+            });
+
+            if (response.ok) {
+                alert(`User role updated to ${newRole} successfully!`);
+                // Refresh the page to show updated role
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert('Failed to update user role: ' + (error.message || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error updating user role:', error);
+            alert('Network error while updating user role');
+        }
+    };
+
     const tabs = [
         { id: 'manage' as const, label: 'Approved Users', count: users.length },
         { id: 'approve' as const, label: 'Pending Approval', count: pendingUsers.length },
@@ -281,6 +362,7 @@ export const Credentials: React.FC<CredentialsProps> = ({ users, pendingUsers, o
                                         <UserListItem
                                             key={user.id}
                                             user={user}
+                                            onRoleChange={handleRoleChange}
                                         />
                                     ))
                             )}

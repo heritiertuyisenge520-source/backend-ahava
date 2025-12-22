@@ -10,6 +10,7 @@ import { GoogleGenAI } from "@google/genai";
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { Credentials } from './components/Credentials';
+import { Permissions } from './components/Permissions';
 import LandingPage from './components/LandingPage';
 
 // --- Registration Success Component ---
@@ -532,6 +533,7 @@ export default function App() {
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, AttendanceStatus>>>({});
     const [activeView, setActiveView] = useState<View>(View.DASHBOARD);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     // Fetch approved singers when user logs in (all authenticated users can see singers)
     useEffect(() => {
@@ -575,7 +577,7 @@ export default function App() {
             };
             fetchSingers();
         }
-    }, [currentUser]);
+    }, [currentUser, refreshKey]);
 
     // Fetch events when user logs in (all authenticated users can see events)
     useEffect(() => {
@@ -607,7 +609,7 @@ export default function App() {
             };
             fetchEvents();
         }
-    }, [currentUser]);
+    }, [currentUser, refreshKey]);
 
     // Fetch announcements when user logs in (all authenticated users can see announcements)
     useEffect(() => {
@@ -639,7 +641,31 @@ export default function App() {
             };
             fetchAnnouncements();
         }
-    }, [currentUser]);
+    }, [currentUser, refreshKey]);
+
+    // Fetch attendance records when user logs in (all authenticated users can see attendance)
+    useEffect(() => {
+        if (currentUser) {
+            const fetchAttendances = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
+
+                    // Fetch all attendance records
+                    const attendancesRes = await fetch('http://localhost:5007/api/attendances/all', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (attendancesRes.ok) {
+                        const attendancesData = await attendancesRes.json();
+                        setAttendanceRecords(attendancesData);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch attendances:', err);
+                }
+            };
+            fetchAttendances();
+        }
+    }, [currentUser, refreshKey]);
 
     // Fetch pending users when admin logs in (only President or Advisor)
     useEffect(() => {
@@ -796,16 +822,31 @@ export default function App() {
         localStorage.removeItem('token');
     };
 
-    const handleAddPermissionRequest = (request: PermissionRequest) => {
-        const newAnnouncement: Announcement = {
-            id: new Date().toISOString(),
-            type: 'permission',
-            title: `Permission Request: ${request.userName}`,
-            author: request.userName,
-            date: new Date().toISOString(),
-            content: `Reason: ${request.reason}. From ${new Date(request.startDate + 'T00:00:00').toLocaleDateString()} to ${new Date((request.endDate || request.startDate) + 'T00:00:00').toLocaleDateString()}.`,
-        };
-        setAnnouncements(prevAnnouncements => [newAnnouncement, ...prevAnnouncements]);
+    const handleAddPermissionRequest = async (request: { startDate: string; endDate: string; reason: string; details: string }) => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await fetch('http://localhost:5007/api/permissions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(request)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert('Permission request submitted successfully!');
+            } else {
+                const error = await response.json();
+                alert(error.message || 'Failed to submit permission request');
+            }
+        } catch (error) {
+            console.error('Error submitting permission request:', error);
+            alert('Network error. Please try again.');
+        }
     };
 
     const handleSubmitEvent = async (eventData: Omit<Event, 'id'>, editingId: string | null) => {
@@ -1049,12 +1090,15 @@ export default function App() {
                             attendanceRecords={attendanceRecords}
                             onSaveAttendance={handleSaveAttendance}
                             onSubmitEvent={handleSubmitEvent}
+                            onAttendanceSaved={() => setRefreshKey(prev => prev + 1)}
                             {...commonProps}
                         />;
             case View.SINGERS:
-                return <Singers singers={approvedUsers} {...commonProps} />;
+                return <Singers singers={approvedUsers} user={currentUser} {...commonProps} />;
             case View.SONGS:
                 return <Songs user={currentUser} {...commonProps} />;
+            case View.PERMISSIONS:
+                return <Permissions user={currentUser} {...commonProps} />;
             case View.CREDENTIALS:
                 return <Credentials
                             users={users}

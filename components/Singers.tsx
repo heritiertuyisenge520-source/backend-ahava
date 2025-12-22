@@ -143,7 +143,7 @@ const SingerCard: React.FC<SingerCardProps> = ({ singer, attendanceSummary }) =>
 };
 
 
-const Singers = ({ singers, onMenuClick }: { singers: User[], onMenuClick?: () => void }) => {
+const Singers = ({ singers, onMenuClick, user }: { singers: User[], onMenuClick?: () => void, user?: User }) => {
     const [attendanceSummaries, setAttendanceSummaries] = useState<Record<string, AttendanceSummary>>({});
     const [loadingSummaries, setLoadingSummaries] = useState(true);
 

@@ -1,7 +1,7 @@
 
 
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { User } from '../types';
 import { Header } from './Header';
 import { ProfileIcon, PencilIcon, CameraIcon } from './Icons';
@@ -50,6 +50,40 @@ export const Profile = ({ user, onUpdateUser, onMenuClick }: { user: User | null
     const [formData, setFormData] = useState<User | null>(user);
     const [imagePreview, setImagePreview] = useState<string | null>(user?.profilePictureUrl || null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [attendanceData, setAttendanceData] = useState<{
+        Present: number;
+        Absent: number;
+        Excused: number;
+        totalEvents: number;
+        percentage: number;
+    } | null>(null);
+    const [loadingAttendance, setLoadingAttendance] = useState(true);
+
+    useEffect(() => {
+        const fetchAttendanceData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch(`http://localhost:5007/api/attendances/summary/${user.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setAttendanceData(data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch attendance data:', error);
+            } finally {
+                setLoadingAttendance(false);
+            }
+        };
+
+        if (user) {
+            fetchAttendanceData();
+        }
+    }, [user]);
 
     if (!user) {
         return (
@@ -234,6 +268,81 @@ export const Profile = ({ user, onUpdateUser, onMenuClick }: { user: User | null
                                 </>
                             )}
                         </dl>
+                    </div>
+
+                    {/* Attendance Statistics */}
+                    <div className="divide-y divide-ahava-purple-medium mt-8">
+                        <div className="px-4 py-5 sm:px-6">
+                            <h3 className="text-lg font-medium leading-6 text-gray-100">Attendance Statistics</h3>
+                            <p className="mt-1 max-w-2xl text-sm text-gray-400">Your attendance record across all choir events.</p>
+                        </div>
+                        <div className="px-4 py-5 sm:px-6">
+                            {loadingAttendance ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ahava-purple-light"></div>
+                                    <span className="ml-2 text-gray-400">Loading attendance data...</span>
+                                </div>
+                            ) : attendanceData ? (
+                                <div className="space-y-6">
+                                    {/* Attendance Percentage Circle */}
+                                    <div className="flex justify-center">
+                                        <div className="relative">
+                                            <svg className="w-32 h-32 transform -rotate-90">
+                                                <circle cx="64" cy="64" r="56" strokeWidth="12" stroke="currentColor" className="text-ahava-purple-dark" fill="transparent" />
+                                                <circle
+                                                    cx="64" cy="64" r="56" strokeWidth="12"
+                                                    stroke="currentColor"
+                                                    className={`${
+                                                        attendanceData.percentage >= 80 ? 'text-ahava-purple-light' :
+                                                        attendanceData.percentage >= 60 ? 'text-yellow-400' :
+                                                        'text-red-400'
+                                                    }`}
+                                                    fill="transparent"
+                                                    strokeDasharray={2 * Math.PI * 56}
+                                                    strokeDashoffset={(2 * Math.PI * 56) - (attendanceData.percentage / 100) * (2 * Math.PI * 56)}
+                                                    strokeLinecap="round"
+                                                    style={{ transition: 'stroke-dashoffset 0.6s ease-out' }}
+                                                />
+                                            </svg>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                <span className={`text-2xl font-bold ${
+                                                    attendanceData.percentage >= 80 ? 'text-ahava-purple-light' :
+                                                    attendanceData.percentage >= 60 ? 'text-yellow-400' :
+                                                    'text-red-400'
+                                                }`}>
+                                                    {attendanceData.percentage}%
+                                                </span>
+                                                <span className="text-xs text-gray-400">Attendance</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Attendance Counts */}
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="bg-green-900/20 border border-green-700 p-3 rounded-lg text-center">
+                                            <p className="text-green-300 font-bold text-lg">{attendanceData.Present}</p>
+                                            <p className="text-green-400 text-sm">Present</p>
+                                        </div>
+                                        <div className="bg-red-900/20 border border-red-700 p-3 rounded-lg text-center">
+                                            <p className="text-red-300 font-bold text-lg">{attendanceData.Absent}</p>
+                                            <p className="text-red-400 text-sm">Absent</p>
+                                        </div>
+                                        <div className="bg-yellow-900/20 border border-yellow-700 p-3 rounded-lg text-center">
+                                            <p className="text-yellow-300 font-bold text-lg">{attendanceData.Excused}</p>
+                                            <p className="text-yellow-400 text-sm">Excused</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-center text-sm text-gray-400">
+                                        Total Events: {attendanceData.totalEvents}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-400">No attendance data available</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

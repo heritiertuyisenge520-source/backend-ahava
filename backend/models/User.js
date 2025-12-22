@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['Singer', 'Advisor', 'President', 'Song Conductor'],
+        enum: ['Singer', 'Advisor', 'President', 'Song Conductor', 'Accountant', 'Secretary'],
         required: true
     },
     dateOfBirth: {

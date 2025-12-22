@@ -65,6 +65,7 @@ app.use('/api/events', require('./routes/eventRoutes'));
 app.use('/api/songs', require('./routes/songRoutes'));
 app.use('/api/attendances', require('./routes/attendanceRoutes'));
 app.use('/api/announcements', require('./routes/announcementRoutes'));
+app.use('/api/permissions', require('./routes/permissionRoutes'));
 
 // Basic route
 app.get('/', (req, res) => {

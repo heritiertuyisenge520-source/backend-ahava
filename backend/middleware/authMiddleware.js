@@ -41,9 +41,13 @@ const authMiddleware = async (req, res, next) => {
 const adminMiddleware = (req, res, next) => {
     console.log('Admin middleware check - User role:', req.user.role, 'User:', req.user.name || req.user.username);
 
-    if (req.user.role !== 'Advisor' && req.user.role !== 'President') {
-        console.log('Access denied - insufficient role:', req.user.role);
-        return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+    if (req.user.role !== 'Advisor' && req.user.role !== 'President' && req.user.role !== 'Accountant' && req.user.role !== 'Secretary') {
+        console.log('Access denied - insufficient role:', req.user.role, 'Allowed roles: President, Advisor, Accountant, Secretary');
+        return res.status(403).json({
+            message: 'Access denied. Admin privileges required.',
+            requiredRoles: ['President', 'Advisor', 'Accountant', 'Secretary'],
+            userRole: req.user.role
+        });
     }
 
     console.log('Admin access granted for role:', req.user.role);

@@ -29,21 +29,33 @@ const getAttendanceByEvent = async (req, res) => {
     try {
         const { eventId } = req.params;
 
-        // Removed cleanup function call to preserve all historical attendance data
-
-        const attendanceRecords = await Attendance.find({ eventId })
-            .populate('userId', 'name username role')
+        // Find all user attendance documents and extract records for this event
+        const allAttendanceDocs = await Attendance.find({})
+            .populate('userId', 'name username role status')
             .sort({ 'userId.name': 1 });
 
         // Convert to the format expected by frontend
         const attendanceMap = {};
-        attendanceRecords.forEach(record => {
-            attendanceMap[record.userId._id] = record.status;
+
+        // Only include approved users
+        allAttendanceDocs.forEach(attendanceDoc => {
+            if (attendanceDoc.userId && attendanceDoc.userId.status === 'approved') {
+                const userId = attendanceDoc.userId._id.toString();
+
+                // Find the record for this specific event
+                const eventRecord = attendanceDoc.records.find(
+                    record => record.eventId.toString() === eventId
+                );
+
+                if (eventRecord) {
+                    attendanceMap[userId] = eventRecord.status;
+                }
+            }
         });
 
         res.json(attendanceMap);
     } catch (error) {
-        console.error(error);
+        console.error('Error getting attendance by event:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -64,58 +76,93 @@ const saveAttendance = async (req, res) => {
 
         console.log(`Saving attendance for event ${eventId}, ${approvedUsers.length} approved users`);
 
-        // Debug: Log the attendance data received
-        console.log('Received attendanceData keys:', Object.keys(attendanceData));
-        console.log('Sample attendanceData:', Object.entries(attendanceData).slice(0, 3));
-
         // Get event details for the human-readable name
         const eventDetails = await Event.findById(eventObjectId);
         if (!eventDetails) {
             throw new Error('Event not found');
         }
 
-        // Perform upsert operations for each approved user
-        const upsertPromises = approvedUsers.map(async (user) => {
-            const userIdString = user._id.toString();
-            // Use the provided status, or default to 'Absent' if not specified
-            const status = attendanceData[userIdString] || 'Absent';
+        // Get active permissions for this event date
+        const Permission = require('../models/Permission');
+        const activePermissions = await Permission.find({
+            status: 'approved',
+            startDate: { $lte: eventDetails.date },
+            endDate: { $gte: eventDetails.date }
+        });
 
-            console.log(`Processing user ${user.name} (${userIdString}): status=${status}, found in data=${!!attendanceData[userIdString]}`);
+        // Create a map of user IDs with active permissions
+        const permissionMap = {};
+        activePermissions.forEach(permission => {
+            permissionMap[permission.userId.toString()] = permission;
+        });
+
+        console.log(`Found ${activePermissions.length} active permissions for event date ${eventDetails.date}`);
+
+        // Process attendance for each approved user
+        const updatePromises = approvedUsers.map(async (user) => {
+            const userIdString = user._id.toString();
+
+            // Check if user has an active permission for this event date
+            const hasActivePermission = permissionMap[userIdString];
+
+            // If user has active permission, force status to 'Excused'
+            // Otherwise, use the provided status, or default to 'Absent' if not specified
+            const status = hasActivePermission ? 'Excused' : (attendanceData[userIdString] || 'Absent');
+
+            console.log(`Processing user ${user.name} (${userIdString}): status=${status}, hasPermission=${!!hasActivePermission}, found in data=${!!attendanceData[userIdString]}`);
 
             try {
-                // Use findOneAndUpdate with upsert: true to update existing or create new
-                const result = await Attendance.findOneAndUpdate(
-                    { eventId: eventObjectId, userId: user._id }, // Find by eventId and userId
-                    {
-                        eventId: eventObjectId,
-                        userId: user._id,
-                        eventName: eventDetails.name, // Human-readable event name
-                        userName: user.name, // Human-readable user name
-                        status,
-                        updatedAt: new Date() // Update timestamp
-                    },
-                    {
-                        upsert: true, // Create if doesn't exist
-                        new: true, // Return the updated document
-                        setDefaultsOnInsert: true // Apply defaults on insert
+                // Use upsert with $push or $set to update the records array
+                const attendanceRecord = {
+                    date: eventDetails.date,
+                    event: eventDetails.name,
+                    status,
+                    eventId: eventObjectId
+                };
+
+                // Check if user already has an attendance document
+                const existingAttendance = await Attendance.findOne({ userId: user._id });
+
+                if (existingAttendance) {
+                    // Update existing record or add new one
+                    const existingRecordIndex = existingAttendance.records.findIndex(
+                        record => record.eventId.toString() === eventId
+                    );
+
+                    if (existingRecordIndex >= 0) {
+                        // Update existing record
+                        existingAttendance.records[existingRecordIndex] = attendanceRecord;
+                    } else {
+                        // Add new record
+                        existingAttendance.records.push(attendanceRecord);
                     }
-                );
-                console.log(`Successfully upserted attendance for ${user.name}: ${result.status}`);
-                return result;
-            } catch (upsertError) {
-                console.error(`Error upserting attendance for user ${user.name}:`, upsertError);
-                throw upsertError;
+
+                    await existingAttendance.save();
+                } else {
+                    // Create new attendance document for user
+                    await Attendance.create({
+                        userId: user._id,
+                        name: user.name,
+                        records: [attendanceRecord]
+                    });
+                }
+
+                console.log(`Successfully updated attendance for ${user.name}: ${status}`);
+                return true;
+            } catch (updateError) {
+                console.error(`Error updating attendance for user ${user.name}:`, updateError);
+                throw updateError;
             }
         });
 
-        // Wait for all upsert operations to complete
-        const results = await Promise.all(upsertPromises);
+        // Wait for all updates to complete
+        await Promise.all(updatePromises);
 
-        console.log(`Successfully saved attendance for ${results.length} users`);
+        console.log(`Successfully saved attendance for ${approvedUsers.length} users`);
 
         res.status(200).json({
             message: 'Attendance saved successfully',
-            updatedCount: results.length
+            updatedCount: approvedUsers.length
         });
     } catch (error) {
         console.error('Error saving attendance:', error);
@@ -130,13 +177,20 @@ const getUserAttendance = async (req, res) => {
     try {
         const { userId } = req.params;
 
-        const attendanceRecords = await Attendance.find({ userId })
-            .populate('eventId', 'name date type')
-            .sort({ 'eventId.date': -1 });
+        const userAttendance = await Attendance.findOne({ userId })
+            .populate('records.eventId', 'name date type');
 
-        res.json(attendanceRecords);
+        if (!userAttendance) {
+            return res.json([]);
+        }
+
+        // Sort records by date descending
+        const sortedRecords = userAttendance.records
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        res.json(sortedRecords);
     } catch (error) {
-        console.error(error);
+        console.error('Error getting user attendance:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -148,28 +202,39 @@ const getAttendanceSummary = async (req, res) => {
     try {
         const { userId } = req.params;
 
-        // Get all attendance records for the user (no date filtering)
-        const attendanceRecords = await Attendance.find({ userId });
+        const userAttendance = await Attendance.findOne({ userId });
 
         const summary = {
             Present: 0,
             Absent: 0,
             Excused: 0,
-            'No Event': 0,
             totalEvents: 0
         };
 
-        // Count all attendance records immediately when saved
-        attendanceRecords.forEach(record => {
-            if (record.status === 'Present' || record.status === 'Absent' || record.status === 'Excused') {
-                summary[record.status]++;
-                summary.totalEvents++;
-            }
-        });
+        if (userAttendance && userAttendance.records) {
+            userAttendance.records.forEach(record => {
+                // Count every valid status — no date/time checks!
+                if (['Present', 'Absent', 'Excused'].includes(record.status)) {
+                    summary[record.status]++;
+                    summary.totalEvents++;
+                }
+            });
+        }
 
-        res.json(summary);
+        const attended = summary.Present + summary.Excused;
+        const percentage = summary.totalEvents > 0
+            ? Math.round((attended / summary.totalEvents) * 100)
+            : 0;
+
+        res.json({
+            Present: summary.Present,
+            Absent: summary.Absent,
+            Excused: summary.Excused,
+            totalEvents: summary.totalEvents,
+            percentage
+        });
     } catch (error) {
-        console.error(error);
+        console.error('Error getting attendance summary:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -181,19 +246,16 @@ const getAllAttendanceSummaries = async (req, res) => {
     try {
         console.log('Fetching attendance summaries for all users...');
 
-        // Get all users first
-        const users = await User.find({ status: 'approved' });
-        console.log(`Found ${users.length} approved users`);
+        // Get all attendance documents (bucket format)
+        const allAttendanceDocs = await Attendance.find({});
+        console.log(`Found ${allAttendanceDocs.length} attendance documents`);
 
         const summaries = {};
 
-        // Get attendance summary for each user
-        for (const user of users) {
-            console.log(`Processing user: ${user.name} (${user._id})`);
-
-            const attendanceRecords = await Attendance.find({ userId: user._id });
-
-            console.log(`Found ${attendanceRecords.length} attendance records for ${user.name}`);
+        // Process each attendance document
+        for (const attendanceDoc of allAttendanceDocs) {
+            const userId = attendanceDoc.userId.toString();
+            console.log(`Processing user: ${attendanceDoc.name} (${userId})`);
 
             const summary = {
                 Present: 0,
@@ -202,16 +264,30 @@ const getAllAttendanceSummaries = async (req, res) => {
                 totalEvents: 0
             };
 
-            // Count all attendance records (no endTime filtering for now)
-            attendanceRecords.forEach((record, index) => {
-                console.log(`Record ${index}: status=${record.status}, eventName=${record.eventName}`);
-                summary[record.status]++;
-                summary.totalEvents++;
-                console.log(`Counted: ${record.status} for ${user.name}`);
+            // Count statuses from the records array
+            attendanceDoc.records.forEach((record, index) => {
+                // Count every valid status — no date/time checks or type filtering!
+                console.log(`Record ${index}: status=${record.status}`);
+                if (['Present', 'Absent', 'Excused'].includes(record.status)) {
+                    summary[record.status]++;
+                    summary.totalEvents++;
+                    console.log(`Counted: ${record.status} for ${attendanceDoc.name}`);
+                }
             });
 
-            console.log(`Final summary for ${user.name}:`, summary);
-            summaries[user._id] = summary;
+            // Calculate attendance percentage
+            const attended = summary.Present + summary.Excused;
+            const percentage = summary.totalEvents > 0
+                ? Math.round((attended / summary.totalEvents) * 100)
+                : 0;
+
+            const finalSummary = {
+                ...summary,
+                percentage
+            };
+
+            console.log(`Final summary for ${attendanceDoc.name}:`, finalSummary);
+            summaries[userId] = finalSummary;
         }
 
         console.log('Final summaries object:', summaries);
@@ -222,10 +298,45 @@ const getAllAttendanceSummaries = async (req, res) => {
     }
 };
 
+// @desc    Get all attendance records
+// @route   GET /api/attendances/all
+// @access  Private
+const getAllAttendances = async (req, res) => {
+    try {
+        // Get all attendance documents in bucket format
+        const allAttendanceDocs = await Attendance.find({});
+
+        // Transform to the format expected by frontend: { eventId: { userId: status } }
+        const attendanceMap = {};
+
+        allAttendanceDocs.forEach(attendanceDoc => {
+            // Process each record in the user's records array
+            attendanceDoc.records.forEach(record => {
+                const eventId = record.eventId.toString();
+                const userId = attendanceDoc.userId.toString();
+
+                // Initialize event object if it doesn't exist
+                if (!attendanceMap[eventId]) {
+                    attendanceMap[eventId] = {};
+                }
+
+                // Set the user's status for this event
+                attendanceMap[eventId][userId] = record.status;
+            });
+        });
+
+        res.json(attendanceMap);
+    } catch (error) {
+        console.error('Error getting all attendances:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 module.exports = {
     getAttendanceByEvent,
     saveAttendance,
     getUserAttendance,
     getAttendanceSummary,
-    getAllAttendanceSummaries
+    getAllAttendanceSummaries,
+    getAllAttendances
 };

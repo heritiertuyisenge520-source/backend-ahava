@@ -1,12 +1,31 @@
 const Event = require('../models/Event');
 
-// Helper function to clean up past events
+// Helper function to clean up past events that have no attendance records
 const cleanupPastEvents = async () => {
     try {
         const currentDate = new Date().toISOString().split('T')[0];
-        const result = await Event.deleteMany({ date: { $lt: currentDate } });
-        if (result.deletedCount > 0) {
-            console.log(`Cleaned up ${result.deletedCount} past events`);
+
+        // Get all past events
+        const pastEvents = await Event.find({ date: { $lt: currentDate } });
+
+        // Check which past events have attendance records
+        const Attendance = require('../models/Attendance');
+        const eventsWithAttendance = await Attendance.distinct('eventId', {
+            eventId: { $in: pastEvents.map(e => e._id) }
+        });
+
+        // Convert to string IDs for comparison
+        const eventsWithAttendanceIds = eventsWithAttendance.map(id => id.toString());
+
+        // Find events to delete (past events without attendance)
+        const eventsToDelete = pastEvents.filter(event =>
+            !eventsWithAttendanceIds.includes(event._id.toString())
+        );
+
+        if (eventsToDelete.length > 0) {
+            const eventIdsToDelete = eventsToDelete.map(e => e._id);
+            const result = await Event.deleteMany({ _id: { $in: eventIdsToDelete } });
+            console.log(`Cleaned up ${result.deletedCount} past events without attendance records`);
         }
     } catch (error) {
         console.error('Error cleaning up past events:', error);
@@ -18,13 +37,19 @@ const cleanupPastEvents = async () => {
 // @access  Private
 const getEvents = async (req, res) => {
     try {
-        // First, clean up past events
+        // First, clean up past events that have no attendance
         await cleanupPastEvents();
 
-        // Get all remaining events (current and future - past events are cleaned up)
-        const events = await Event.find({}).sort({ date: 1, startTime: 1 });
+        // Get all events and filter out completed ones (past date OR today but end time passed)
+        const allEvents = await Event.find({}).sort({ date: 1, startTime: 1 });
+        const now = new Date();
 
-        res.json(events);
+        const activeEvents = allEvents.filter(event => {
+            const eventDateTime = new Date(`${event.date}T${event.endTime}`);
+            return eventDateTime > now; // Only show events that haven't ended yet
+        });
+
+        res.json(activeEvents);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -101,17 +126,16 @@ const updateEvent = async (req, res) => {
 // @access  Private/Admin
 const deleteEvent = async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id);
+        const event = await Event.findByIdAndDelete(req.params.id);
 
         if (event) {
-            await event.remove();
             res.json({ message: 'Event removed' });
         } else {
             res.status(404).json({ message: 'Event not found' });
         }
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error deleting event:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 

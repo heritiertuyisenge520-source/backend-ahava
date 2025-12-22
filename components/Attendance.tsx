@@ -27,27 +27,30 @@ interface AttendanceProps {
     onSaveAttendance: (eventId: string, records: Record<string, AttendanceStatus>) => Promise<{ success: boolean; message: string }>;
     onSubmitEvent?: (eventData: Omit<Event, 'id'>, editingId: string | null) => void;
     onMenuClick?: () => void;
+    onAttendanceSaved?: () => void;
 }
 
-export const Attendance = ({ user, singers, onNewPermissionRequest, events, attendanceRecords, onSaveAttendance, onSubmitEvent, onMenuClick }: AttendanceProps) => {
+export const Attendance = ({ user, singers, onNewPermissionRequest, events, attendanceRecords, onSaveAttendance, onSubmitEvent, onMenuClick, onAttendanceSaved }: AttendanceProps) => {
     if (!user) return <div className="p-8">Loading attendance data...</div>;
 
     const canManageAttendance = user.role === 'Advisor' || user.role === 'President';
 
     if (canManageAttendance) {
         const membersForAttendance = singers;
-        return <AdvisorAttendanceView 
-                    members={membersForAttendance} 
+        return <AdvisorAttendanceView
+                    user={user}
+                    members={membersForAttendance}
                     events={events}
                     attendanceRecords={attendanceRecords}
                     onSave={onSaveAttendance}
+                    onAttendanceSaved={onAttendanceSaved}
                     onMenuClick={onMenuClick}
                 />;
     }
-    
-    return <SingerAttendanceView 
-                user={user} 
-                onNewPermissionRequest={onNewPermissionRequest} 
+
+    return <SingerAttendanceView
+                user={user}
+                onNewPermissionRequest={onNewPermissionRequest}
                 events={events}
                 attendanceRecords={attendanceRecords}
                 onMenuClick={onMenuClick}
@@ -131,9 +134,10 @@ interface SingerAttendanceRowProps {
     singer: User;
     status: AttendanceStatus;
     onStatusChange: (singerId: string, newStatus: AttendanceStatus) => void;
+    activePermissions?: any[];
 }
 
-const SingerAttendanceRow: React.FC<SingerAttendanceRowProps> = ({ singer, status, onStatusChange }) => {
+const SingerAttendanceRow: React.FC<SingerAttendanceRowProps> = ({ singer, status, onStatusChange, activePermissions }) => {
     const placeholderAvatar = `https://ui-avatars.com/api/?name=${singer.name.replace(' ', '+')}&background=c7d2fe&color=3730a3&size=96`;
     const avatarSrc = singer.profilePictureUrl || placeholderAvatar;
 
@@ -145,26 +149,42 @@ const SingerAttendanceRow: React.FC<SingerAttendanceRowProps> = ({ singer, statu
         'default': 'bg-ahava-purple-medium text-gray-200 hover:bg-ahava-purple-light',
     };
 
+    const userPermission = activePermissions?.find(p => p.userId === singer.id);
+
+    const handleStatusClick = (newStatus: AttendanceStatus) => {
+        // If trying to change from Excused to Present/Absent and user has active permission
+        if (status === 'Excused' && (newStatus === 'Present' || newStatus === 'Absent') && userPermission) {
+            const startDate = new Date(userPermission.startDate).toLocaleDateString();
+            const endDate = userPermission.endDate ? new Date(userPermission.endDate).toLocaleDateString() : startDate;
+            alert(`This member has an approved permission request from ${startDate} to ${endDate} because of: ${userPermission.reason}. They must remain marked as Excused.`);
+            return;
+        }
+        onStatusChange(singer.id, newStatus);
+    };
+
     return (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-ahava-background rounded-lg transition-colors hover:bg-ahava-purple-dark/40 gap-3 sm:gap-0">
             <div className="flex items-center space-x-4 w-full sm:w-auto">
                  {singer.profilePictureUrl ? (
                     <img src={avatarSrc} alt={singer.name} className="w-10 h-10 rounded-full object-cover" />
                  ) : (
-                    <div className="w-10 h-10 bg-indigo-200 flex items-center justify-center rounded-full">
+                    <div className="w-16 h-16 bg-indigo-200 flex items-center justify-center rounded-full">
                         <span className="font-bold text-indigo-800">{getInitials(singer.name)}</span>
                     </div>
                  )}
                 <div>
                     <p className="font-medium text-gray-100">{singer.name}</p>
                     <p className="text-sm text-gray-400">{singer.role}</p>
+                    {userPermission && status === 'Excused' && (
+                        <p className="text-xs text-yellow-400 mt-1">Has approved permission</p>
+                    )}
                 </div>
             </div>
             <div className="flex space-x-2 w-full sm:w-auto justify-end sm:justify-start">
                 {statusOptions.map(option => (
                     <button
                         key={option}
-                        onClick={() => onStatusChange(singer.id, option)}
+                        onClick={() => handleStatusClick(option)}
                         className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
                             status === option ? statusClasses[option] : statusClasses['default']
                         }`}
@@ -269,17 +289,38 @@ interface AdvisorAttendanceViewProps {
     onSave: (eventId: string, records: Record<string, AttendanceStatus>) => Promise<{ success: boolean; message: string }>;
     onSubmitEvent?: (eventData: Omit<Event, 'id'>, editingId: string | null) => void;
     onMenuClick?: () => void;
+    onAttendanceSaved?: () => void;
 }
 
-const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onMenuClick }: AdvisorAttendanceViewProps) => {
+const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onMenuClick, onAttendanceSaved, user }: AdvisorAttendanceViewProps & { user: User }) => {
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
+    const [activePermissions, setActivePermissions] = useState<any[]>([]);
     const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalData, setModalData] = useState<{title: string; members: User[]}>({title: '', members: []});
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    const advisorOverallSummary = useMemo(() => {
+        const summary: Record<AttendanceStatus, number> = { 'Present': 0, 'Absent': 0, 'Excused': 0, 'No Event': 0 };
+        const now = new Date();
+
+        events.forEach(event => {
+            const eventDateTime = new Date(`${event.date}T${event.endTime}`);
+            const isPast = eventDateTime < now;
+            if (isPast) {
+                const status = attendanceRecords[event.id]?.[user.id];
+                if (status && (status === 'Present' || status === 'Absent' || status === 'Excused')) {
+                    summary[status]++;
+                } else {
+                    summary['Absent']++;
+                }
+            }
+        });
+        return summary;
+    }, [events, attendanceRecords, user.id]);
 
     const selectableEvents = useMemo(() => {
         const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
@@ -307,6 +348,35 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
         return counts;
     }, [attendance]);
 
+    // Fetch active permissions when event is selected
+    useEffect(() => {
+        const fetchActivePermissions = async () => {
+            if (!selectedEvent || !selectedEvent.date) {
+                setActivePermissions([]);
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch(`http://localhost:5007/api/permissions/active/${selectedEvent.date}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const permissions = await response.json();
+                    setActivePermissions(permissions);
+                }
+            } catch (error) {
+                console.error('Error fetching active permissions:', error);
+                setActivePermissions([]);
+            }
+        };
+
+        fetchActivePermissions();
+    }, [selectedEvent]);
+
     useEffect(() => {
         if (!selectedEventId) {
             setAttendance({});
@@ -314,10 +384,18 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
         };
         const initialAttendance: Record<string, AttendanceStatus> = {};
         members.forEach(member => {
-            initialAttendance[member.id] = attendanceRecords[selectedEventId]?.[member.id] || 'Absent';
+            const existingStatus = attendanceRecords[selectedEventId]?.[member.id];
+            const hasActivePermission = activePermissions.some(p => p.userId === member.id);
+
+            // If user has active permission and no existing attendance, set to Excused
+            if (hasActivePermission && !existingStatus) {
+                initialAttendance[member.id] = 'Excused';
+            } else {
+                initialAttendance[member.id] = existingStatus || 'Absent';
+            }
         });
         setAttendance(initialAttendance);
-    }, [selectedEventId, members, attendanceRecords]);
+    }, [selectedEventId, members, attendanceRecords, activePermissions]);
 
     const handleOpenModal = (status: 'Present' | 'Absent' | 'Excused') => {
         const filteredMembers = members.filter(m => attendance[m.id] === status).sort((a,b) => a.name.localeCompare(b.name));
@@ -355,6 +433,11 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
             });
             setIsSaveModalOpen(false);
 
+            // Trigger refresh of parent components after successful save
+            if (result.success && onAttendanceSaved) {
+                onAttendanceSaved();
+            }
+
             // Auto-hide success message after 5 seconds
             if (result.success) {
                 setTimeout(() => setSaveMessage(null), 5000);
@@ -373,6 +456,8 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
 
 
 
+    const advisorTotal = advisorOverallSummary.Present + advisorOverallSummary.Absent + advisorOverallSummary.Excused;
+
     return (
          <div className="bg-ahava-background min-h-full">
             <Header
@@ -382,6 +467,20 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
                 onMenuClick={onMenuClick}
             />
             <div className="p-4 md:p-8">
+                <div className="bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark mb-8">
+                    <h3 className="text-xl font-bold text-gray-100 mb-4 text-center">Your Attendance Performance</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="md:col-span-1">
+                            <AttendancePieChart summary={advisorOverallSummary} />
+                        </div>
+                        <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <StatCard title="Present" value={advisorOverallSummary.Present} color="bg-green-500" percentage={advisorTotal > 0 ? (advisorOverallSummary.Present / advisorTotal) * 100 : -1} />
+                            <StatCard title="Excused" value={advisorOverallSummary.Excused} color="bg-yellow-500" percentage={advisorTotal > 0 ? (advisorOverallSummary.Excused / advisorTotal) * 100 : -1} />
+                            <StatCard title="Absent" value={advisorOverallSummary.Absent} color="bg-red-500/80" percentage={advisorTotal > 0 ? (advisorOverallSummary.Absent / advisorTotal) * 100 : -1} />
+                        </div>
+                    </div>
+                </div>
+
                 <div className="bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark">
                     <div>
                         <label htmlFor="event-select" className="block text-lg font-medium text-gray-100 mb-2">Select an Event</label>
@@ -403,45 +502,69 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
                 </div>
 
                 {selectedEventId && selectedEvent ? (
-                    <div className="mt-8 bg-ahava-surface p-6 rounded-lg shadow-md animate-fadeInUp border border-ahava-purple-dark">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-100">{selectedEvent.name}</h3>
-                                <p className="text-sm text-gray-400">{new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                            </div>
-                             <button onClick={handleSave} className="bg-ahava-purple-dark text-white font-semibold py-2 px-6 rounded-lg hover:bg-ahava-purple-medium transition-colors w-full sm:w-auto">Save Attendance</button>
-                        </div>
+                    (() => {
+                        const eventAttendance = attendanceRecords[selectedEventId];
+                        const hasAttendance = eventAttendance && Object.keys(eventAttendance).length > 0;
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                            {(['Present', 'Absent', 'Excused'] as const).map(status => {
-                                const colors = { Present: { bg: 'bg-green-900/40', border: 'border-green-700', hover: 'hover:bg-green-900/60', text: 'text-green-300', value: 'text-green-200' },
-                                                 Absent: { bg: 'bg-red-900/40', border: 'border-red-700', hover: 'hover:bg-red-900/60', text: 'text-red-300', value: 'text-red-200' },
-                                                 Excused: { bg: 'bg-yellow-900/40', border: 'border-yellow-700', hover: 'hover:bg-yellow-900/60', text: 'text-yellow-300', value: 'text-yellow-200' } };
-                                const color = colors[status];
-                                return (
-                                    <button 
-                                        key={status}
-                                        onClick={() => handleOpenModal(status)}
-                                        className={`p-4 rounded-lg text-center ${color.bg} border ${color.border} ${color.hover} transition-colors`}
-                                    >
-                                        <p className={`text-xs ${color.text} uppercase font-semibold`}>{status}</p>
-                                        <p className={`font-bold text-3xl ${color.value}`}>{summary[status]}</p>
-                                    </button>
-                                );
-                            })}
-                             <div className="p-4 rounded-lg text-center bg-ahava-background border border-ahava-purple-dark">
-                                <p className="text-xs text-gray-400 uppercase font-semibold">Total</p>
-                                <p className="font-bold text-3xl text-gray-200">{members.length}</p>
+                        if (hasAttendance) {
+                            return (
+                                <div className="mt-8 bg-ahava-surface p-6 rounded-lg shadow-md animate-fadeInUp border border-ahava-purple-dark">
+                                    <div className="text-center">
+                                        <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-100 mb-2">Attendance Already Recorded</h3>
+                                        <p className="text-gray-300 mb-4">The attendance for "{selectedEvent.name}" has already been taken and saved.</p>
+                                        <p className="text-sm text-gray-400">You cannot modify attendance records once they have been saved.</p>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="mt-8 bg-ahava-surface p-6 rounded-lg shadow-md animate-fadeInUp border border-ahava-purple-dark">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-100">{selectedEvent.name}</h3>
+                                        <p className="text-sm text-gray-400">{new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                    </div>
+                                     <button onClick={handleSave} className="bg-ahava-purple-dark text-white font-semibold py-2 px-6 rounded-lg hover:bg-ahava-purple-medium transition-colors w-full sm:w-auto">Save Attendance</button>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                                    {(['Present', 'Absent', 'Excused'] as const).map(status => {
+                                        const colors = { Present: { bg: 'bg-green-900/40', border: 'border-green-700', hover: 'hover:bg-green-900/60', text: 'text-green-300', value: 'text-green-200' },
+                                                         Absent: { bg: 'bg-red-900/40', border: 'border-red-700', hover: 'hover:bg-red-900/60', text: 'text-red-300', value: 'text-red-200' },
+                                                         Excused: { bg: 'bg-yellow-900/40', border: 'border-yellow-700', hover: 'hover:bg-yellow-900/60', text: 'text-yellow-300', value: 'text-yellow-200' } };
+                                        const color = colors[status];
+                                        return (
+                                            <button
+                                                key={status}
+                                                onClick={() => handleOpenModal(status)}
+                                                className={`p-4 rounded-lg text-center ${color.bg} border ${color.border} ${color.hover} transition-colors`}
+                                            >
+                                                <p className={`text-xs ${color.text} uppercase font-semibold`}>{status}</p>
+                                                <p className={`font-bold text-3xl ${color.value}`}>{summary[status]}</p>
+                                            </button>
+                                        );
+                                    })}
+                                     <div className="p-4 rounded-lg text-center bg-ahava-background border border-ahava-purple-dark">
+                                        <p className="text-xs text-gray-400 uppercase font-semibold">Total</p>
+                                        <p className="font-bold text-3xl text-gray-200">{members.length}</p>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-ahava-purple-medium pt-6 space-y-3">
+                                    <h4 className="text-lg font-semibold text-gray-200 mb-2">Choir Roster</h4>
+                                    {members.map(member => (
+                                        <SingerAttendanceRow key={member.id} singer={member} status={attendance[member.id] || 'Absent'} onStatusChange={handleStatusChange} activePermissions={activePermissions} />
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div className="border-t border-ahava-purple-medium pt-6 space-y-3">
-                            <h4 className="text-lg font-semibold text-gray-200 mb-2">Choir Roster</h4>
-                            {members.map(member => (
-                                <SingerAttendanceRow key={member.id} singer={member} status={attendance[member.id] || 'Absent'} onStatusChange={handleStatusChange} />
-                            ))}
-                        </div>
-                    </div>
+                        );
+                    })()
                 ) : (
                     <div className="mt-8 bg-ahava-surface p-6 rounded-lg shadow-md flex flex-col items-center justify-center h-64 text-center text-gray-400 border border-ahava-purple-dark">
                         <ChartBarIcon className="w-16 h-16 text-ahava-purple-dark mb-4" />
@@ -546,64 +669,57 @@ const StatCard = ({ title, value, color, percentage }: { title: string, value: n
     </div>
 );
 
-const MonthSelector = ({ selectedDate, onDateChange }: { selectedDate: Date, onDateChange: (date: Date) => void }) => {
-    const months = [{ name: 'September', value: 8 }, { name: 'October', value: 9 }];
-    return (
-        <div className="flex space-x-2">
-            {months.map(month => (
-                <button
-                    key={month.value}
-                    onClick={() => onDateChange(new Date(currentYear, month.value))}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                        selectedDate.getMonth() === month.value
-                            ? 'bg-ahava-purple-dark text-white'
-                            : 'bg-ahava-purple-medium text-gray-300 hover:bg-ahava-purple-light'
-                    }`}
-                >
-                    {month.name}
-                </button>
-            ))}
-        </div>
-    );
-};
+const AttendanceHistoryList = ({ events, attendanceRecords, userId }: { events: Event[], attendanceRecords: Record<string, Record<string, AttendanceStatus>>, userId: string }) => {
+    const now = new Date();
 
-const CalendarDay: React.FC<{ dayData: AttendanceData }> = ({ dayData }) => {
-    const statusClasses: Record<AttendanceStatus, string> = {
-        'Present': 'bg-green-500 text-white',
-        'Absent': 'bg-red-500/80 text-white',
-        'Excused': 'bg-yellow-500 text-black',
-        'No Event': 'bg-ahava-background text-gray-500',
-    };
-    
-    const icon: Record<EventType, React.ReactNode> = {
-        'Practice': <SongsIcon className="h-4 w-4" />,
-        'Service': <BuildingIcon className="h-4 w-4" />,
-        'None': null,
+    const sortedEvents = events
+        .filter(event => new Date(`${event.date}T${event.endTime}`) < now) // Only past events
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Most recent first
+
+    const getStatusDisplay = (status: AttendanceStatus | undefined) => {
+        const statusConfig = {
+            'Present': { text: 'Present', color: 'text-green-400', bg: 'bg-green-900/20' },
+            'Absent': { text: 'Absent', color: 'text-red-400', bg: 'bg-red-900/20' },
+            'Excused': { text: 'Excused', color: 'text-yellow-400', bg: 'bg-yellow-900/20' },
+        };
+        if (status && statusConfig[status]) {
+            return statusConfig[status];
+        }
+        return { text: 'Not Recorded', color: 'text-gray-400', bg: 'bg-gray-900/20' };
     };
 
-    return (
-        <div className={`aspect-square flex flex-col items-center justify-center rounded-lg p-2 ${statusClasses[dayData.status]}`}>
-            <span className="font-bold text-lg">{dayData.day}</span>
-            <div className="mt-1 h-4">
-                {dayData.eventType !== 'None' && icon[dayData.eventType]}
+    if (sortedEvents.length === 0) {
+        return (
+            <div className="text-center text-gray-400 py-8">
+                <p>No past events found.</p>
             </div>
-        </div>
-    );
-};
-
-const CalendarGrid = ({ data, selectedDate }: { data: AttendanceData[], selectedDate: Date }) => {
-    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).getDay();
+        );
+    }
 
     return (
-        <div>
-            <div className="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-gray-400 mb-2">
-                {daysOfWeek.map(day => <div key={day}>{day}</div>)}
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
-                {data.map(dayData => <CalendarDay key={dayData.day} dayData={dayData} />)}
-            </div>
+        <div className="space-y-3">
+            <h4 className="text-lg font-semibold text-gray-200 mb-4">Attendance History</h4>
+            {sortedEvents.map(event => {
+                const status = attendanceRecords[event.id]?.[userId];
+                const statusDisplay = getStatusDisplay(status);
+                const eventDate = new Date(event.date + 'T00:00:00');
+
+                return (
+                    <div key={event.id} className={`p-4 rounded-lg border ${statusDisplay.bg} border-ahava-purple-dark`}>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h5 className="font-semibold text-gray-100">{event.name}</h5>
+                                <p className="text-sm text-gray-400">
+                                    {eventDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} • {event.type}
+                                </p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusDisplay.color} ${statusDisplay.bg}`}>
+                                {statusDisplay.text}
+                            </span>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 };
@@ -617,42 +733,21 @@ interface SingerAttendanceViewProps {
 }
 
 const SingerAttendanceView = ({ user, onNewPermissionRequest, events, attendanceRecords, onMenuClick }: SingerAttendanceViewProps) => {
-    const [selectedDate, setSelectedDate] = useState(new Date(currentYear, 8)); // Default to September
     const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
     const [permissionConfirmation, setPermissionConfirmation] = useState<React.ReactNode | null>(null);
-
-    const attendanceDataForMonth = useMemo<AttendanceData[]>(() => {
-        const year = selectedDate.getFullYear();
-        const month = selectedDate.getMonth();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const data: AttendanceData[] = [];
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month, day);
-            const dateString = date.toISOString().split('T')[0];
-            const eventOnDay = events.find(e => e.date === dateString);
-
-            if (eventOnDay) {
-                const userStatus = attendanceRecords[eventOnDay.id]?.[user.id] || 'No Event';
-                if (userStatus === 'No Event' && new Date(eventOnDay.date + 'T' + eventOnDay.endTime) < new Date()) {
-                    data.push({ day, status: 'Absent', eventType: eventOnDay.type });
-                } else {
-                    data.push({ day, status: userStatus, eventType: eventOnDay.type });
-                }
-            } else {
-                data.push({ day, status: 'No Event', eventType: 'None' });
-            }
-        }
-        return data;
-    }, [selectedDate, events, attendanceRecords, user.id]);
 
     const overallSummary = useMemo(() => {
         const summary: Record<AttendanceStatus, number> = { 'Present': 0, 'Absent': 0, 'Excused': 0, 'No Event': 0 };
         const now = new Date();
 
+        console.log('Calculating overallSummary for user', user.id);
         events.forEach(event => {
-            if (new Date(`${event.date}T${event.endTime}`) < now) {
+            const eventDateTime = new Date(`${event.date}T${event.endTime}`);
+            const isPast = eventDateTime < now;
+            console.log('Event', event.name, 'date', event.date, 'endTime', event.endTime, 'isPast', isPast);
+            if (isPast) {
                 const status = attendanceRecords[event.id]?.[user.id];
+                console.log('status for user', status);
                 if (status && (status === 'Present' || status === 'Absent' || status === 'Excused')) {
                     summary[status]++;
                 } else {
@@ -660,6 +755,7 @@ const SingerAttendanceView = ({ user, onNewPermissionRequest, events, attendance
                 }
             }
         });
+        console.log('final summary', summary);
         return summary;
     }, [events, attendanceRecords, user.id]);
 
@@ -708,11 +804,7 @@ const SingerAttendanceView = ({ user, onNewPermissionRequest, events, attendance
                         </div>
                     </div>
                     <div className="lg:col-span-2 bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-gray-100">Monthly Attendance</h3>
-                            <MonthSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
-                        </div>
-                        <CalendarGrid data={attendanceDataForMonth} selectedDate={selectedDate} />
+                        <AttendanceHistoryList events={events} attendanceRecords={attendanceRecords} userId={user.id} />
                     </div>
                 </div>
             </div>

@@ -2,6 +2,58 @@ import React, { useState } from 'react';
 import type { User } from '../types';
 import { CheckCircleIcon, KeyIcon, MailIcon } from './Icons';
 
+// Rwanda Administrative Divisions Data
+const RWANDA_PROVINCES = [
+    'Kigali',
+    'Northern',
+    'Southern',
+    'Eastern',
+    'Western'
+];
+
+const RWANDA_DISTRICTS = {
+    'Kigali': [
+        'Gasabo',
+        'Kicukiro',
+        'Nyarugenge'
+    ],
+    'Northern': [
+        'Burera',
+        'Gakenke',
+        'Gicumbi',
+        'Musanze',
+        'Rulindo'
+    ],
+    'Southern': [
+        'Gisagara',
+        'Huye',
+        'Kamonyi',
+        'Muhanga',
+        'Nyamagabe',
+        'Nyanza',
+        'Nyaruguru',
+        'Ruhango'
+    ],
+    'Eastern': [
+        'Bugesera',
+        'Gatsibo',
+        'Kayonza',
+        'Kirehe',
+        'Ngoma',
+        'Nyagatare',
+        'Rwamagana'
+    ],
+    'Western': [
+        'Karongi',
+        'Ngororero',
+        'Nyabihu',
+        'Nyamasheke',
+        'Rubavu',
+        'Rusizi',
+        'Rutsiro'
+    ]
+};
+
 interface RegisterProps {
     onRegister: (user: User, password: string) => Promise<string | null>;
     onSwitchToLogin: () => void;
@@ -12,6 +64,7 @@ export const Register = ({ onRegister, onSwitchToLogin }: RegisterProps) => {
         id: '',
         username: '',
         name: '', email: '', phoneNumber: '', dateOfBirth: '', placeOfBirth: '',
+        placeOfResidence: '',
         yearOfStudy: '', university: '', gender: '', maritalStatus: '',
         homeParishName: '',
         homeParishLocation: { cell: '', sector: '', district: '' },
@@ -164,10 +217,7 @@ export const Register = ({ onRegister, onSwitchToLogin }: RegisterProps) => {
                                     <label htmlFor="dateOfBirth" className={labelClasses}>Date of Birth</label>
                                     <input type="date" name="dateOfBirth" id="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className={inputClasses + " [color-scheme:dark]"} />
                                 </div>
-                                <div>
-                                    <label htmlFor="placeOfBirth" className={labelClasses}>Home Resident</label>
-                                    <input type="text" name="placeOfBirth" id="placeOfBirth" value={formData.placeOfBirth} onChange={handleChange} className={inputClasses} />
-                                </div>
+
                                 <div>
                                     <label className={labelClasses}>Gender</label>
                                     <select name="gender" value={formData.gender} onChange={handleChange} className={inputClasses}>
@@ -193,11 +243,25 @@ export const Register = ({ onRegister, onSwitchToLogin }: RegisterProps) => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label htmlFor="province" className={labelClasses}>Province</label>
-                                    <input type="text" name="province" id="province" value={formData.province} onChange={handleChange} className={inputClasses} placeholder="Enter province" />
+                                    <select name="province" id="province" value={formData.province} onChange={(e) => {
+                                        handleChange(e);
+                                        // Clear district when province changes
+                                        setFormData(prev => ({ ...prev, district: '' }));
+                                    }} className={inputClasses}>
+                                        <option value="">Select Province</option>
+                                        {RWANDA_PROVINCES.map(province => (
+                                            <option key={province} value={province}>{province}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label htmlFor="district" className={labelClasses}>District</label>
-                                    <input type="text" name="district" id="district" value={formData.district} onChange={handleChange} className={inputClasses} placeholder="Enter district" />
+                                    <select name="district" id="district" value={formData.district} onChange={handleChange} className={inputClasses} disabled={!formData.province}>
+                                        <option value="">Select District</option>
+                                        {formData.province && RWANDA_DISTRICTS[formData.province as keyof typeof RWANDA_DISTRICTS]?.map(district => (
+                                            <option key={district} value={district}>{district}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label htmlFor="sector" className={labelClasses}>Sector</label>
