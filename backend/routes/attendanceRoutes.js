@@ -4,7 +4,8 @@ const {
     getAttendanceByEvent,
     saveAttendance,
     getUserAttendance,
-    getAttendanceSummary
+    getAttendanceSummary,
+    getAllAttendanceSummaries
 } = require('../controllers/attendanceController');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
@@ -14,5 +15,6 @@ router.route('/event/:eventId')
 
 router.get('/user/:userId', authMiddleware, getUserAttendance);
 router.get('/summary/:userId', authMiddleware, getAttendanceSummary);
+router.get('/summaries', authMiddleware, getAllAttendanceSummaries);
 
 module.exports = router;

@@ -11,6 +11,15 @@ const attendanceSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    // Human-readable fields for debugging
+    eventName: {
+        type: String,
+        required: true
+    },
+    userName: {
+        type: String,
+        required: true
+    },
     status: {
         type: String,
         enum: ['Present', 'Absent', 'Excused'],

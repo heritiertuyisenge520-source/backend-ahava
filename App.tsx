@@ -849,7 +849,7 @@ export default function App() {
                         endTime: savedEvent.endTime
                     };
                     setEvents(prevEvents => [newEvent, ...prevEvents]
-                        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                        .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
                 }
             } else {
                 const errorData = await response.json();
@@ -964,11 +964,37 @@ export default function App() {
         }
     };
 
-    const handleSaveAttendance = (eventId: string, records: Record<string, AttendanceStatus>) => {
-        setAttendanceRecords(prev => ({
-            ...prev,
-            [eventId]: records,
-        }));
+    const handleSaveAttendance = async (eventId: string, records: Record<string, AttendanceStatus>): Promise<{ success: boolean; message: string }> => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                return { success: false, message: 'Authentication required. Please log in again.' };
+            }
+
+            const response = await fetch(`http://localhost:5007/api/attendances/event/${eventId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(records)
+            });
+
+            if (response.ok) {
+                // Update local state after successful save
+                setAttendanceRecords(prev => ({
+                    ...prev,
+                    [eventId]: records,
+                }));
+                return { success: true, message: 'Attendance saved in database successfully!' };
+            } else {
+                const errorData = await response.json();
+                return { success: false, message: errorData.message || 'Failed to save attendance in database.' };
+            }
+        } catch (error) {
+            console.error('Failed to save attendance:', error);
+            return { success: false, message: 'Network error. Failed to save attendance.' };
+        }
     };
 
     const handleUserApproved = (approvedUser: User) => {
@@ -1022,6 +1048,7 @@ export default function App() {
                             events={events}
                             attendanceRecords={attendanceRecords}
                             onSaveAttendance={handleSaveAttendance}
+                            onSubmitEvent={handleSubmitEvent}
                             {...commonProps}
                         />;
             case View.SINGERS:

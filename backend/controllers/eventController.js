@@ -21,19 +21,8 @@ const getEvents = async (req, res) => {
         // First, clean up past events
         await cleanupPastEvents();
 
-        // Get current date in YYYY-MM-DD format
-        const today = new Date().toISOString().split('T')[0];
-
-        // Find events that are today or in the future
-        const events = await Event.find({
-            $or: [
-                { date: { $gt: today } }, // Future dates
-                {
-                    date: today,
-                    endTime: { $gte: new Date().toTimeString().slice(0, 5) } // Today but end time hasn't passed
-                }
-            ]
-        }).sort({ date: 1, startTime: 1 }); // Sort by date ascending, then time ascending
+        // Get all remaining events (current and future - past events are cleaned up)
+        const events = await Event.find({}).sort({ date: 1, startTime: 1 });
 
         res.json(events);
     } catch (error) {

@@ -24,11 +24,12 @@ interface AttendanceProps {
     onNewPermissionRequest: (request: PermissionRequest) => void;
     events: Event[];
     attendanceRecords: Record<string, Record<string, AttendanceStatus>>;
-    onSaveAttendance: (eventId: string, records: Record<string, AttendanceStatus>) => void;
+    onSaveAttendance: (eventId: string, records: Record<string, AttendanceStatus>) => Promise<{ success: boolean; message: string }>;
+    onSubmitEvent?: (eventData: Omit<Event, 'id'>, editingId: string | null) => void;
     onMenuClick?: () => void;
 }
 
-export const Attendance = ({ user, singers, onNewPermissionRequest, events, attendanceRecords, onSaveAttendance, onMenuClick }: AttendanceProps) => {
+export const Attendance = ({ user, singers, onNewPermissionRequest, events, attendanceRecords, onSaveAttendance, onSubmitEvent, onMenuClick }: AttendanceProps) => {
     if (!user) return <div className="p-8">Loading attendance data...</div>;
 
     const canManageAttendance = user.role === 'Advisor' || user.role === 'President';
@@ -176,11 +177,97 @@ const SingerAttendanceRow: React.FC<SingerAttendanceRowProps> = ({ singer, statu
     );
 };
 
+interface SaveConfirmationModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    summary: { Present: number; Absent: number; Excused: number; total: number };
+    isLoading: boolean;
+}
+
+const SaveConfirmationModal = ({ isOpen, onClose, onConfirm, summary, isLoading }: SaveConfirmationModalProps) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleEsc = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && !isLoading) onClose();
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [onClose, isLoading]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div ref={modalRef} className="bg-ahava-surface rounded-lg shadow-xl p-6 w-full max-w-md border border-ahava-purple-medium">
+                <div className="flex justify-between items-start mb-4">
+                    <h2 className="text-xl font-bold text-gray-100">Confirm Attendance Save</h2>
+                    {!isLoading && (
+                        <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
+                    )}
+                </div>
+
+                <div className="space-y-4 mb-6">
+                    <p className="text-gray-300">Please review the attendance summary before saving:</p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-green-900/20 border border-green-700 p-3 rounded-lg text-center">
+                            <p className="text-green-300 font-bold text-lg">{summary.Present}</p>
+                            <p className="text-green-400 text-sm">Present</p>
+                        </div>
+                        <div className="bg-red-900/20 border border-red-700 p-3 rounded-lg text-center">
+                            <p className="text-red-300 font-bold text-lg">{summary.Absent}</p>
+                            <p className="text-red-400 text-sm">Absent</p>
+                        </div>
+                        <div className="bg-yellow-900/20 border border-yellow-700 p-3 rounded-lg text-center">
+                            <p className="text-yellow-300 font-bold text-lg">{summary.Excused}</p>
+                            <p className="text-yellow-400 text-sm">Excused</p>
+                        </div>
+                        <div className="bg-gray-900/20 border border-gray-600 p-3 rounded-lg text-center">
+                            <p className="text-gray-300 font-bold text-lg">{summary.total}</p>
+                            <p className="text-gray-400 text-sm">Total</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                    <button
+                        onClick={onClose}
+                        disabled={isLoading}
+                        className="bg-ahava-purple-medium text-gray-200 font-semibold py-2 px-4 rounded-lg hover:bg-ahava-purple-light transition-colors disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isLoading}
+                        className="bg-ahava-purple-dark text-white font-semibold py-2 px-6 rounded-lg hover:bg-ahava-purple-medium transition-colors disabled:opacity-50 flex items-center"
+                    >
+                        {isLoading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Saving...
+                            </>
+                        ) : (
+                            'Save Attendance'
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface AdvisorAttendanceViewProps {
     members: User[];
     events: Event[];
     attendanceRecords: Record<string, Record<string, AttendanceStatus>>;
-    onSave: (eventId: string, records: Record<string, AttendanceStatus>) => void;
+    onSave: (eventId: string, records: Record<string, AttendanceStatus>) => Promise<{ success: boolean; message: string }>;
+    onSubmitEvent?: (eventData: Omit<Event, 'id'>, editingId: string | null) => void;
     onMenuClick?: () => void;
 }
 
@@ -190,15 +277,18 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
     const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalData, setModalData] = useState<{title: string; members: User[]}>({title: '', members: []});
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const selectableEvents = useMemo(() => {
-        const now = new Date();
+        const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
         return events
-            .filter(event => new Date(`${event.date}T${event.startTime}`) <= now)
+            .filter(event => event.date >= today) // Show events from today onwards (including future events)
             .sort((a, b) => {
                 const dateA = new Date(`${a.date}T${a.startTime}`);
                 const dateB = new Date(`${b.date}T${b.startTime}`);
-                return dateB.getTime() - dateA.getTime();
+                return dateA.getTime() - dateB.getTime(); // Sort by date ascending (earliest first)
             });
     }, [events]);
 
@@ -243,11 +333,45 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
     };
 
     const handleSave = () => {
-        if (!selectedEventId) return;
-        onSave(selectedEventId, attendance);
-        setShowSaveConfirmation(true);
-        setTimeout(() => setShowSaveConfirmation(false), 3000);
+        setIsSaveModalOpen(true);
     };
+
+    const handleConfirmSave = async () => {
+        if (!selectedEventId) return;
+
+        console.log('Frontend: Saving attendance for event:', selectedEventId);
+        console.log('Frontend: Attendance data to save:', attendance);
+        console.log('Frontend: Attendance data keys:', Object.keys(attendance));
+        console.log('Frontend: Sample attendance data:', Object.entries(attendance).slice(0, 3));
+
+        setIsSaving(true);
+        try {
+            const result = await onSave(selectedEventId, attendance);
+            console.log('Frontend: Save result:', result);
+
+            setSaveMessage({
+                type: result.success ? 'success' : 'error',
+                message: result.message
+            });
+            setIsSaveModalOpen(false);
+
+            // Auto-hide success message after 5 seconds
+            if (result.success) {
+                setTimeout(() => setSaveMessage(null), 5000);
+            }
+        } catch (error) {
+            console.error('Frontend: Error saving attendance:', error);
+            setSaveMessage({
+                type: 'error',
+                message: 'Failed to save attendance. Please try again.'
+            });
+            setIsSaveModalOpen(false);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+
 
     return (
          <div className="bg-ahava-background min-h-full">
@@ -326,10 +450,20 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
                     </div>
                 )}
             </div>
-            {showSaveConfirmation && (
-                <div className="fixed bottom-8 right-8 bg-green-600 text-white py-3 px-6 rounded-lg shadow-xl flex items-center animate-fadeInUp z-50 border border-green-400">
+            {saveMessage && (
+                <div className={`fixed bottom-8 right-8 py-3 px-6 rounded-lg shadow-xl flex items-center animate-fadeInUp z-50 border ${
+                    saveMessage.type === 'success' ? 'bg-green-600 text-white border-green-400' : 'bg-red-600 text-white border-red-400'
+                }`}>
                     <CheckCircleIcon className="w-6 h-6 mr-3" />
-                    <span className="font-semibold">Attendance saved successfully!</span>
+                    <span className="font-semibold">{saveMessage.message}</span>
+                    {saveMessage.type === 'error' && (
+                        <button
+                            onClick={() => setSaveMessage(null)}
+                            className="ml-4 text-white hover:text-gray-200"
+                        >
+                            ✕
+                        </button>
+                    )}
                 </div>
             )}
             <StatusSummaryModal
@@ -337,6 +471,13 @@ const AdvisorAttendanceView = ({ members, events, attendanceRecords, onSave, onM
                 onClose={() => setIsModalOpen(false)}
                 title={modalData.title}
                 members={modalData.members}
+            />
+            <SaveConfirmationModal
+                isOpen={isSaveModalOpen}
+                onClose={() => setIsSaveModalOpen(false)}
+                onConfirm={handleConfirmSave}
+                summary={{ ...summary, total: members.length }}
+                isLoading={isSaving}
             />
         </div>
     );
