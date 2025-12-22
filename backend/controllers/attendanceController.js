@@ -29,8 +29,7 @@ const getAttendanceByEvent = async (req, res) => {
     try {
         const { eventId } = req.params;
 
-        // Clean up past attendance records
-        await cleanupPastAttendance();
+        // Removed cleanup function call to preserve all historical attendance data
 
         const attendanceRecords = await Attendance.find({ eventId })
             .populate('userId', 'name username role')
@@ -149,21 +148,22 @@ const getAttendanceSummary = async (req, res) => {
     try {
         const { userId } = req.params;
 
-        const attendanceRecords = await Attendance.find({ userId })
-            .populate('eventId', 'date endTime');
+        // Get all attendance records for the user (no date filtering)
+        const attendanceRecords = await Attendance.find({ userId });
 
         const summary = {
             Present: 0,
             Absent: 0,
             Excused: 0,
-            'No Event': 0
+            'No Event': 0,
+            totalEvents: 0
         };
 
-        const now = new Date();
-
+        // Count all attendance records immediately when saved
         attendanceRecords.forEach(record => {
-            if (new Date(record.eventId.endTime) < now) {
+            if (record.status === 'Present' || record.status === 'Absent' || record.status === 'Excused') {
                 summary[record.status]++;
+                summary.totalEvents++;
             }
         });
 
