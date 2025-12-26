@@ -3,14 +3,23 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
+interface ExistingPermission {
+    id: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    status: string;
+}
+
 interface PermissionRequestModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (request: { startDate: string; endDate: string; reason: string; details: string }) => void;
     confirmationContent: React.ReactNode | null;
+    existingPermission?: ExistingPermission | null;
 }
 
-export const PermissionRequestModal = ({ isOpen, onClose, onSubmit, confirmationContent }: PermissionRequestModalProps) => {
+export const PermissionRequestModal = ({ isOpen, onClose, onSubmit, confirmationContent, existingPermission }: PermissionRequestModalProps) => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [reason, setReason] = useState('');
@@ -70,6 +79,67 @@ export const PermissionRequestModal = ({ isOpen, onClose, onSubmit, confirmation
                 {confirmationContent ? (
                     <>
                         {confirmationContent}
+                        <div className="mt-8 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="bg-ahava-purple-dark text-white font-semibold py-2 px-4 rounded-lg hover:bg-ahava-purple-medium transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </>
+                ) : existingPermission ? (
+                    <>
+                        <div className="flex justify-between items-start mb-4">
+                            <h2 id="permission-modal-title" className="text-xl font-bold text-gray-100">
+                                {existingPermission.status === 'pending' ? 'Pending Permission Request' : 'Existing Approved Permission'}
+                            </h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl font-bold leading-none" aria-label="Close modal">&times;</button>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="bg-ahava-purple-dark/50 p-4 rounded-lg border border-ahava-purple-medium">
+                                <div className="flex items-center mb-3">
+                                    <div className={`w-3 h-3 rounded-full mr-2 ${
+                                        existingPermission.status === 'approved' ? 'bg-green-500' :
+                                        existingPermission.status === 'pending' ? 'bg-yellow-500' : 'bg-gray-500'
+                                    }`}></div>
+                                    <span className={`text-sm font-medium ${
+                                        existingPermission.status === 'approved' ? 'text-green-400' :
+                                        existingPermission.status === 'pending' ? 'text-yellow-400' : 'text-gray-400'
+                                    }`}>
+                                        {existingPermission.status.charAt(0).toUpperCase() + existingPermission.status.slice(1)} Permission
+                                    </span>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">Start Date:</span>
+                                        <span className="text-gray-200">{new Date(existingPermission.startDate).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">End Date:</span>
+                                        <span className="text-gray-200">{new Date(existingPermission.endDate).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">Reason:</span>
+                                        <span className="text-gray-200">{existingPermission.reason}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {existingPermission.status === 'pending' ? (
+                                <div className="bg-yellow-900/20 border border-yellow-700 p-4 rounded-lg">
+                                    <p className="text-yellow-300 text-sm">
+                                        You already have a pending permission request. Please wait for it to be reviewed before submitting a new one.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="bg-green-900/20 border border-green-700 p-4 rounded-lg">
+                                    <p className="text-green-300 text-sm">
+                                        You already have an approved permission for this period. You cannot request overlapping permissions.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                         <div className="mt-8 flex justify-end">
                             <button
                                 type="button"

@@ -34,42 +34,51 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => 
 );
 
 export const Sidebar = ({ activeView, setActiveView, user, onLogout, isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
-    // Define base navigation items that all users can see
-    const baseNavItems = [
-        { id: View.DASHBOARD, label: 'DASHBOARD', icon: <DashboardIcon /> },
-        { id: View.PROFILE, label: 'PROFILE', icon: <ProfileIcon /> },
+    // Define navigation items in the desired order
+    const navItems = [
+        // Dashboard - accessible to all
+        { id: View.DASHBOARD, label: 'DASHBOARD', icon: <DashboardIcon />, roles: ['all'] },
+
+        // Attendance - for all members (view performance), management for President/Advisor only
+        { id: View.ATTENDANCE_PERFORMANCE, label: 'ATTENDANCE', icon: <ChartBarIcon />, roles: ['all'] },
+
+        // Members (Singers) - for all except Accountant
+        { id: View.SINGERS, label: 'MEMBERS', icon: <SingersIcon />, roles: ['President', 'Secretary', 'Advisor', 'Singer', 'Song Conductor'] },
+
+        // Songs Library - for all members (view songs), management for Song Conductor only
+        { id: View.SONGS, label: 'SONGS LIBRARY', icon: <SongsIcon />, roles: ['all'] },
+
+        // Profile - accessible to all
+        { id: View.PROFILE, label: 'PROFILE', icon: <ProfileIcon />, roles: ['all'] },
+
+        // Permissions - for President, Secretary, Advisor
+        { id: View.PERMISSIONS, label: 'PERMISSION', icon: <CardIcon />, roles: ['President', 'Secretary', 'Advisor'] },
+
+        // Credentials - for President and Advisor only (administrative access)
+        { id: View.CREDENTIALS, label: 'CREDENTIALS', icon: <KeyIcon />, roles: ['President', 'Advisor'] },
     ];
 
-    // Role-specific navigation items
-    const roleBasedNavItems = [];
-
-    // Attendance access for President, Secretary, Advisor, and Singers
-    if (['President', 'Secretary', 'Advisor', 'Singer'].includes(user.role)) {
-        roleBasedNavItems.push({ id: View.ATTENDANCE_PERFORMANCE, label: 'ATTENDANCE', icon: <ChartBarIcon /> });
-    }
-
-    // Singers access for all except Accountant
-    if (user.role !== 'Accountant') {
-        roleBasedNavItems.push({ id: View.SINGERS, label: 'SINGERS', icon: <SingersIcon /> });
-    }
-
-    // Songs access for President, Song Conductor, Advisor, and Singers
-    if (['President', 'Song Conductor', 'Advisor', 'Singer'].includes(user.role)) {
-        roleBasedNavItems.push({ id: View.SONGS, label: 'SONGS', icon: <SongsIcon /> });
-    }
-
-    // Combine base and role-based items
-    const navItems = [...baseNavItems, ...roleBasedNavItems];
-
-    const canManageCredentials = user.role === 'President' || user.role === 'Advisor' || user.role === 'Accountant';
-    const canManagePermissions = ['President', 'Secretary', 'Advisor'].includes(user.role);
+    // Filter items based on user role
+    const filteredNavItems = navItems.filter(item =>
+        item.roles.includes('all') || item.roles.includes(user.role)
+    );
 
     const getInitials = (name: string) => {
-        const names = name.split(' ');
+        const names = name.trim().split(/\s+/);
         if (names.length === 0) return '';
         const firstInitial = names[0]?.[0] || '';
         const lastInitial = names.length > 1 ? names[names.length - 1]?.[0] || '' : '';
         return `${firstInitial}${lastInitial}`.toUpperCase();
+    }
+
+    const getAbbreviatedName = (name: string) => {
+        const names = name.trim().split(/\s+/);
+        if (names.length === 0) return '';
+        if (names.length === 1) return names[0];
+
+        const firstName = names[0];
+        const lastName = names[names.length - 1];
+        return `${firstName.charAt(0)}. ${lastName}`;
     }
 
     return (
@@ -89,12 +98,12 @@ export const Sidebar = ({ activeView, setActiveView, user, onLogout, isSidebarOp
                     </div>
                 )}
                 <div>
-                    <h2 className="font-semibold">{user.name}</h2>
+                    <h2 className="font-semibold">{getAbbreviatedName(user.name)}</h2>
                 </div>
             </div>
             <nav className="flex-1 mt-4" onClick={() => setIsSidebarOpen(false)}>
                 <ul>
-                    {navItems.map(item => (
+                    {filteredNavItems.map(item => (
                         <NavItem
                             key={item.id}
                             icon={item.icon}
@@ -103,24 +112,6 @@ export const Sidebar = ({ activeView, setActiveView, user, onLogout, isSidebarOp
                             onClick={() => setActiveView(item.id)}
                         />
                     ))}
-                    {canManagePermissions && (
-                        <NavItem
-                            key={View.PERMISSIONS}
-                            icon={<CardIcon className="h-5 w-5" />}
-                            label="PERMISSIONS"
-                            isActive={activeView === View.PERMISSIONS}
-                            onClick={() => setActiveView(View.PERMISSIONS)}
-                        />
-                    )}
-                    {canManageCredentials && (
-                        <NavItem
-                            key={View.CREDENTIALS}
-                            icon={<KeyIcon className="h-5 w-5" />}
-                            label="CREDENTIALS"
-                            isActive={activeView === View.CREDENTIALS}
-                            onClick={() => setActiveView(View.CREDENTIALS)}
-                        />
-                    )}
                 </ul>
             </nav>
             <div className="p-2 border-t border-ahava-purple-medium">

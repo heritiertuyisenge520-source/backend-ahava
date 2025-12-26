@@ -31,13 +31,6 @@ export const Header = ({ breadcrumbs, title, titleIcon, actionButton, children, 
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
                  {actionButton}
-                <div className="flex items-center space-x-3 text-gray-400">
-                    <button className="hover:text-white relative">
-                        <CodeIcon />
-                        <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">1</span>
-                    </button>
-                    <img src="https://picsum.photos/id/237/200/200" alt="User" className="w-9 h-9 rounded-full" />
-                </div>
             </div>
         </div>
     </header>

@@ -97,6 +97,13 @@ const saveAttendance = async (req, res) => {
         });
 
         console.log(`Found ${activePermissions.length} active permissions for event date ${eventDetails.date}`);
+        console.log('Active permissions details:', activePermissions.map(p => ({
+            userId: p.userId.toString(),
+            userName: p.userName,
+            startDate: p.startDate,
+            endDate: p.endDate,
+            reason: p.reason
+        })));
 
         // Process attendance for each approved user
         const updatePromises = approvedUsers.map(async (user) => {
@@ -120,6 +127,8 @@ const saveAttendance = async (req, res) => {
                     eventId: eventObjectId
                 };
 
+                console.log(`Attendance record for ${user.name}:`, attendanceRecord);
+
                 // Check if user already has an attendance document
                 const existingAttendance = await Attendance.findOne({ userId: user._id });
 
@@ -129,22 +138,32 @@ const saveAttendance = async (req, res) => {
                         record => record.eventId.toString() === eventId
                     );
 
+                    console.log(`Found existing attendance for ${user.name}, existingRecordIndex: ${existingRecordIndex}`);
+
                     if (existingRecordIndex >= 0) {
                         // Update existing record
                         existingAttendance.records[existingRecordIndex] = attendanceRecord;
+                        console.log(`Updated existing record at index ${existingRecordIndex}`);
                     } else {
                         // Add new record
                         existingAttendance.records.push(attendanceRecord);
+                        console.log(`Added new record to existing attendance`);
                     }
 
-                    await existingAttendance.save();
+                    // Mark the records array as modified
+                    existingAttendance.markModified('records');
+
+                    const saved = await existingAttendance.save();
+                    console.log(`Saved existing attendance for ${user.name}, records count: ${saved.records.length}`);
+                    console.log(`First record in saved document:`, saved.records[0]);
                 } else {
                     // Create new attendance document for user
-                    await Attendance.create({
+                    const newAttendance = await Attendance.create({
                         userId: user._id,
                         name: user.name,
                         records: [attendanceRecord]
                     });
+                    console.log(`Created new attendance document for ${user.name}, records count: ${newAttendance.records.length}`);
                 }
 
                 console.log(`Successfully updated attendance for ${user.name}: ${status}`);
@@ -332,11 +351,44 @@ const getAllAttendances = async (req, res) => {
     }
 };
 
+// @desc    Get detailed attendance records for all users
+// @route   GET /api/attendances/detailed
+// @access  Private
+const getDetailedAttendances = async (req, res) => {
+    try {
+        // Get all attendance documents
+        const allAttendanceDocs = await Attendance.find({})
+            .populate('userId', 'name status profilePictureUrl role');
+
+        const detailedMap = {};
+
+        allAttendanceDocs.forEach(doc => {
+            if (doc.userId) { // Ensure user still exists
+                detailedMap[doc.userId._id.toString()] = {
+                    user: doc.userId,
+                    records: doc.records.map(r => ({
+                        date: r.date,
+                        eventName: r.event, // Uses the stored event name string
+                        status: r.status,
+                        eventId: r.eventId
+                    }))
+                };
+            }
+        });
+
+        res.json(detailedMap);
+    } catch (error) {
+        console.error('Error getting detailed attendances:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 module.exports = {
     getAttendanceByEvent,
     saveAttendance,
     getUserAttendance,
     getAttendanceSummary,
     getAllAttendanceSummaries,
-    getAllAttendances
+    getAllAttendances,
+    getDetailedAttendances
 };

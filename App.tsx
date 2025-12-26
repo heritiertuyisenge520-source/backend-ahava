@@ -71,7 +71,7 @@ const AddSongModal = ({ isOpen, onClose, onSubmit, songToEdit }: AddSongModalPro
             }
         }
     }, [isOpen, songToEdit]);
-    
+
     useEffect(() => {
         const handleEsc = (event: KeyboardEvent) => {
             if (event.key === 'Escape') onClose();
@@ -92,12 +92,12 @@ const AddSongModal = ({ isOpen, onClose, onSubmit, songToEdit }: AddSongModalPro
         e.preventDefault();
         onSubmit({ title, composer, lyrics });
     };
-    
+
     const modalTitle = songToEdit ? 'Edit Song' : 'Add New Song';
     const submitButtonText = songToEdit ? 'Save Changes' : 'Save Song';
 
     return (
-        <div 
+        <div
             className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"
             onClick={handleClickOutside}
             role="dialog"
@@ -379,7 +379,7 @@ const Songs = ({ user, onMenuClick }: { user: User, onMenuClick?: () => void }) 
     };
 
     const AddSongButton = () => (
-        <button 
+        <button
             onClick={handleOpenAddModal}
             className="bg-ahava-purple-dark text-white font-semibold py-2 px-4 rounded-lg hover:bg-ahava-purple-medium transition-colors flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
@@ -403,7 +403,7 @@ const Songs = ({ user, onMenuClick }: { user: User, onMenuClick?: () => void }) 
                     <div className="space-y-4">
                         {songs.length > 0 ? (
                             songs.map(song => (
-                                <SongListItem 
+                                <SongListItem
                                     key={song.id}
                                     song={song}
                                     onSelect={setSelectedSong}
@@ -421,7 +421,7 @@ const Songs = ({ user, onMenuClick }: { user: User, onMenuClick?: () => void }) 
                     </div>
                 )}
             </div>
-            <AddSongModal 
+            <AddSongModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={handleSubmitSong}
@@ -435,9 +435,16 @@ const Songs = ({ user, onMenuClick }: { user: User, onMenuClick?: () => void }) 
 
 interface SingerCardProps {
     singer: User;
+    attendanceStats?: {
+        present: number;
+        absent: number;
+        excused: number;
+        percentage: number;
+        recentEvents: { name: string; date: string; status: AttendanceStatus }[]
+    };
 }
 
-const SingerCard: React.FC<SingerCardProps> = ({ singer }) => {
+const SingerCard: React.FC<SingerCardProps> = ({ singer, attendanceStats }) => {
     const getInitials = (name: string) => {
         const names = name.split(' ');
         if (names.length === 0) return '';
@@ -451,19 +458,69 @@ const SingerCard: React.FC<SingerCardProps> = ({ singer }) => {
     return (
         <div className="bg-ahava-surface rounded-lg shadow-md p-6 flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-ahava-purple-dark hover:border-ahava-purple-medium">
             <div className="flex items-center mb-4">
-                 {singer.profilePictureUrl ? (
+                {singer.profilePictureUrl ? (
                     <img src={singer.profilePictureUrl} alt={singer.name} className="w-16 h-16 rounded-full object-cover mr-4 border-2 border-ahava-purple-light" />
-                 ) : (
+                ) : (
                     <div className="w-16 h-16 bg-indigo-200 flex items-center justify-center rounded-full mr-4 border-2 border-ahava-purple-light">
                         <span className="text-2xl font-bold text-indigo-800">{getInitials(singer.name)}</span>
                     </div>
-                 )}
+                )}
                 <div>
                     <h2 className="text-xl font-bold text-gray-100">{singer.name}</h2>
                     <p className="text-sm text-gray-400">{singer.role}</p>
                 </div>
             </div>
-            <div className="space-y-3 mt-4 flex-grow">
+
+            {attendanceStats && (
+                <div className="mb-4">
+                    <div className="p-3 bg-ahava-background rounded-lg border border-ahava-purple-dark/50 mb-3">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-semibold text-gray-400">ATTENDANCE</span>
+                            <span className={`text-sm font-bold ${attendanceStats.percentage >= 75 ? 'text-green-400' : attendanceStats.percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                {attendanceStats.percentage}%
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-xs sm:text-sm">
+                            <div className="flex flex-col items-center">
+                                <span className="font-bold text-green-400">{attendanceStats.present}</span>
+                                <span className="text-gray-500 text-[10px] uppercase">Pres</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="font-bold text-yellow-500">{attendanceStats.excused}</span>
+                                <span className="text-gray-500 text-[10px] uppercase">Exc</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="font-bold text-red-400">{attendanceStats.absent}</span>
+                                <span className="text-gray-500 text-[10px] uppercase">Abs</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {attendanceStats.recentEvents.length > 0 && (
+                        <div className="p-3 bg-ahava-background rounded-lg border border-ahava-purple-dark/50">
+                            <div className="text-xs font-semibold text-gray-400 mb-2 uppercase">Recent Activity</div>
+                            <div className="space-y-2">
+                                {attendanceStats.recentEvents.map((event, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-xs">
+                                        <div className="truncate pr-2">
+                                            <div className="text-gray-300 font-medium truncate">{event.name}</div>
+                                            <div className="text-gray-500">{new Date(event.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${event.status === 'Present' ? 'bg-green-900/30 text-green-400 border border-green-800' :
+                                            event.status === 'Excused' ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-800' :
+                                                'bg-red-900/30 text-red-400 border border-red-800'
+                                            }`}>
+                                            {event.status === 'Present' ? 'Pres' : event.status === 'Excused' ? 'Exc' : 'Abs'}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <div className="space-y-3 mt-auto">
                 <div className="flex items-center text-gray-300 text-sm">
                     <MailIcon className="w-4 h-4 mr-3 text-gray-500" />
                     <a href={`mailto:${singer.email}`} className="hover:underline hover:text-ahava-purple-light break-all">{singer.email}</a>
@@ -476,7 +533,7 @@ const SingerCard: React.FC<SingerCardProps> = ({ singer }) => {
                 )}
             </div>
             {formattedPhoneNumber && (
-                 <div className="mt-6">
+                <div className="mt-6">
                     <a
                         href={`https://wa.me/${formattedPhoneNumber}`}
                         target="_blank"
@@ -494,7 +551,45 @@ const SingerCard: React.FC<SingerCardProps> = ({ singer }) => {
 };
 
 
-const Singers = ({ singers, onMenuClick }: { singers: User[], onMenuClick?: () => void }) => {
+interface SingersProps {
+    singers: User[];
+    detailedAttendance?: Record<string, { user: User; records: { date: string; eventName: string; status: AttendanceStatus; eventId: string }[] }>;
+    onMenuClick?: () => void;
+}
+
+const Singers = ({ singers, detailedAttendance, onMenuClick }: SingersProps) => {
+
+    const getStats = (userId: string) => {
+        if (!detailedAttendance || !detailedAttendance[userId]) return undefined;
+
+        const userRecords = detailedAttendance[userId].records;
+
+        let present = 0, absent = 0, excused = 0;
+        const now = new Date();
+
+        // Calculate stats based on ALL records for this user (including deleted events)
+        userRecords.forEach(record => {
+            if (record.status === 'Present') present++;
+            else if (record.status === 'Excused') excused++;
+            else if (record.status === 'Absent') absent++;
+        });
+
+        const total = present + absent + excused;
+        const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+
+        // Get last 3 records sorted by date
+        const recentEvents = [...userRecords]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 3)
+            .map(r => ({
+                name: r.eventName,
+                date: r.date,
+                status: r.status
+            }));
+
+        return { present, absent, excused, percentage, recentEvents };
+    };
+
     return (
         <div className="min-h-full bg-ahava-background">
             <Header
@@ -507,7 +602,7 @@ const Singers = ({ singers, onMenuClick }: { singers: User[], onMenuClick?: () =
                 {singers && singers.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {singers.map(singer => (
-                            <SingerCard key={singer.id} singer={singer} />
+                            <SingerCard key={singer.id} singer={singer} attendanceStats={getStats(singer.id)} />
                         ))}
                     </div>
                 ) : (
@@ -531,6 +626,7 @@ export default function App() {
     const [events, setEvents] = useState<Event[]>([]); // Events fetched from API
     const [announcements, setAnnouncements] = useState<Announcement[]>([]); // Announcements fetched from API
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, AttendanceStatus>>>({});
+    const [detailedAttendance, setDetailedAttendance] = useState<Record<string, any>>({});
     const [activeView, setActiveView] = useState<View>(View.DASHBOARD);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -651,13 +747,22 @@ export default function App() {
                     const token = localStorage.getItem('token');
                     if (!token) return;
 
-                    // Fetch all attendance records
+                    // Fetch all attendance records (map)
                     const attendancesRes = await fetch('http://localhost:5007/api/attendances/all', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     if (attendancesRes.ok) {
                         const attendancesData = await attendancesRes.json();
                         setAttendanceRecords(attendancesData);
+                    }
+
+                    // Fetch detailed attendance (full history including deleted events)
+                    const detailedRes = await fetch('http://localhost:5007/api/attendances/detailed', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (detailedRes.ok) {
+                        const detailedData = await detailedRes.json();
+                        setDetailedAttendance(detailedData);
                     }
                 } catch (err) {
                     console.error('Failed to fetch attendances:', err);
@@ -711,63 +816,63 @@ export default function App() {
     }, [currentUser]);
 
     const handleLogin = async (username: string, password: string): Promise<boolean> => {
-    try {
-        const response = await fetch('http://localhost:5007/api/users/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-        });
+        try {
+            const response = await fetch('http://localhost:5007/api/users/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
 
-        const data = await response.json();
+            const data = await response.json();
 
-        if (!response.ok) {
-            if (response.status === 403) {
-                alert(data.message);
-                return false;
-            } else if (response.status === 401) {
-                alert('Invalid credentials. Please try again.');
-                return false;
-            } else {
-                alert(data.message || 'Login failed');
-                return false;
+            if (!response.ok) {
+                if (response.status === 403) {
+                    alert(data.message);
+                    return false;
+                } else if (response.status === 401) {
+                    alert('Invalid credentials. Please try again.');
+                    return false;
+                } else {
+                    alert(data.message || 'Login failed');
+                    return false;
+                }
             }
+
+            // Store token
+            localStorage.setItem('token', data.token);
+
+            // Use the data from login response directly — it has everything!
+            const user: User = {
+                id: data._id || data.id,
+                username: data.username,
+                name: data.name,
+                email: data.email,
+                role: data.role,
+                phoneNumber: data.phoneNumber || '',
+                profilePictureUrl: data.profilePictureUrl || undefined,
+                dateOfBirth: data.dateOfBirth || '',
+                placeOfBirth: data.placeOfBirth || '',
+                placeOfResidence: data.placeOfResidence || '',
+                yearOfStudy: data.yearOfStudy || '',
+                university: data.university || '',
+                gender: data.gender || '',
+                maritalStatus: data.maritalStatus || '',
+                homeParishName: data.homeParishName || '',
+                homeParishLocation: data.homeParishLocation || { cell: '', sector: '', district: '' },
+                schoolResidence: data.schoolResidence || '',
+            };
+
+            setCurrentUser(user);
+            setActiveView(View.DASHBOARD);
+            return true;
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Network error. Please try again.');
+            return false;
         }
-
-        // Store token
-        localStorage.setItem('token', data.token);
-
-        // Use the data from login response directly — it has everything!
-        const user: User = {
-            id: data._id || data.id,
-            username: data.username,
-            name: data.name,
-            email: data.email,
-            role: data.role,
-            phoneNumber: data.phoneNumber || '',
-            profilePictureUrl: data.profilePictureUrl || undefined,
-            dateOfBirth: data.dateOfBirth || '',
-            placeOfBirth: data.placeOfBirth || '',
-            placeOfResidence: data.placeOfResidence || '',
-            yearOfStudy: data.yearOfStudy || '',
-            university: data.university || '',
-            gender: data.gender || '',
-            maritalStatus: data.maritalStatus || '',
-            homeParishName: data.homeParishName || '',
-            homeParishLocation: data.homeParishLocation || { cell: '', sector: '', district: '' },
-            schoolResidence: data.schoolResidence || '',
-        };
-
-        setCurrentUser(user);
-        setActiveView(View.DASHBOARD);
-        return true;
-    } catch (error) {
-        console.error('Login error:', error);
-        alert('Network error. Please try again.');
-        return false;
-    }
-};
+    };
 
     const handleRegister = async (newUser: User, password: string): Promise<string | null> => {
         // ... (unchanged)
@@ -815,7 +920,7 @@ export default function App() {
             return 'Network error. Please try again.';
         }
     };
-    
+
     const handleLogout = () => {
         setCurrentUser(null);
         setActiveView(View.DASHBOARD);
@@ -836,16 +941,27 @@ export default function App() {
                 body: JSON.stringify(request)
             });
 
+            const result = await response.json();
+
             if (response.ok) {
-                const result = await response.json();
                 alert('Permission request submitted successfully!');
+                return { success: true, message: 'Permission request submitted successfully!' };
             } else {
-                const error = await response.json();
-                alert(error.message || 'Failed to submit permission request');
+                // Handle specific error cases
+                if (result.message && result.existingPermission) {
+                    // This is an overlapping permission error
+                    alert(result.message);
+                    return { success: false, message: result.message, existingPermission: result.existingPermission };
+                } else {
+                    // Generic error
+                    alert(result.message || 'Failed to submit permission request');
+                    return { success: false, message: result.message || 'Failed to submit permission request' };
+                }
             }
         } catch (error) {
             console.error('Error submitting permission request:', error);
             alert('Network error. Please try again.');
+            return { success: false, message: 'Network error. Please try again.' };
         }
     };
 
@@ -890,7 +1006,7 @@ export default function App() {
                         endTime: savedEvent.endTime
                     };
                     setEvents(prevEvents => [newEvent, ...prevEvents]
-                        .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
                 }
             } else {
                 const errorData = await response.json();
@@ -970,7 +1086,7 @@ export default function App() {
                         content: savedAnnouncement.content
                     };
                     setAnnouncements(prev => [newAnnouncement, ...prev]
-                        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
                 }
             } else {
                 const errorData = await response.json();
@@ -1068,73 +1184,74 @@ export default function App() {
         const commonProps = { onMenuClick };
         switch (activeView) {
             case View.PROFILE:
-                return <Profile user={currentUser} onUpdateUser={() => {}} {...commonProps} />;
+                return <Profile user={currentUser} onUpdateUser={() => { }} {...commonProps} />;
             case View.DASHBOARD:
                 return <Dashboard
-                            user={currentUser}
-                            announcements={announcements}
-                            setActiveView={setActiveView}
-                            events={events}
-                            onSubmitEvent={handleSubmitEvent}
-                            onDeleteEvent={handleDeleteEvent}
-                            onSubmitAnnouncement={handleSubmitAnnouncement}
-                            onDeleteAnnouncement={handleDeleteAnnouncement}
-                            {...commonProps}
-                        />;
+                    user={currentUser}
+                    announcements={announcements}
+                    setActiveView={setActiveView}
+                    events={events}
+                    onSubmitEvent={handleSubmitEvent}
+                    onDeleteEvent={handleDeleteEvent}
+                    onSubmitAnnouncement={handleSubmitAnnouncement}
+                    onDeleteAnnouncement={handleDeleteAnnouncement}
+                    {...commonProps}
+                />;
             case View.ATTENDANCE_PERFORMANCE:
                 return <Attendance
-                            user={currentUser}
-                            singers={approvedUsers}
-                            onNewPermissionRequest={handleAddPermissionRequest}
-                            events={events}
-                            attendanceRecords={attendanceRecords}
-                            onSaveAttendance={handleSaveAttendance}
-                            onSubmitEvent={handleSubmitEvent}
-                            onAttendanceSaved={() => setRefreshKey(prev => prev + 1)}
-                            {...commonProps}
-                        />;
+                    user={currentUser}
+                    singers={approvedUsers}
+                    onNewPermissionRequest={handleAddPermissionRequest}
+                    events={events}
+                    attendanceRecords={attendanceRecords}
+                    onSaveAttendance={handleSaveAttendance}
+                    onSubmitEvent={handleSubmitEvent}
+                    onAttendanceSaved={() => setRefreshKey(prev => prev + 1)}
+                    detailedAttendance={detailedAttendance}
+                    {...commonProps}
+                />;
             case View.SINGERS:
-                return <Singers singers={approvedUsers} user={currentUser} {...commonProps} />;
+                return <Singers singers={approvedUsers} detailedAttendance={detailedAttendance} {...commonProps} />;
             case View.SONGS:
                 return <Songs user={currentUser} {...commonProps} />;
             case View.PERMISSIONS:
                 return <Permissions user={currentUser} {...commonProps} />;
             case View.CREDENTIALS:
                 return <Credentials
-                            users={users}
-                            pendingUsers={pendingUsers}
-                            onUserApproved={handleUserApproved}
-                            onUserRejected={handleUserRejected}
-                            {...commonProps}
-                        />;
+                    users={users}
+                    pendingUsers={pendingUsers}
+                    onUserApproved={handleUserApproved}
+                    onUserRejected={handleUserRejected}
+                    {...commonProps}
+                />;
             default:
                 return <Dashboard
-                            user={currentUser}
-                            announcements={announcements}
-                            setActiveView={setActiveView}
-                            events={events}
-                            onSubmitEvent={handleSubmitEvent}
-                            onDeleteEvent={handleDeleteEvent}
-                            onSubmitAnnouncement={handleSubmitAnnouncement}
-                            onDeleteAnnouncement={handleDeleteAnnouncement}
-                            {...commonProps}
-                        />;
+                    user={currentUser}
+                    announcements={announcements}
+                    setActiveView={setActiveView}
+                    events={events}
+                    onSubmitEvent={handleSubmitEvent}
+                    onDeleteEvent={handleDeleteEvent}
+                    onSubmitAnnouncement={handleSubmitAnnouncement}
+                    onDeleteAnnouncement={handleDeleteAnnouncement}
+                    {...commonProps}
+                />;
         }
     };
 
     return (
         <div className="relative min-h-screen md:flex bg-ahava-background font-sans text-gray-300">
             {isSidebarOpen && (
-                <div 
-                    className="md:hidden fixed inset-0 bg-black bg-opacity-60 z-30" 
+                <div
+                    className="md:hidden fixed inset-0 bg-black bg-opacity-60 z-30"
                     onClick={() => setIsSidebarOpen(false)}
                     aria-hidden="true"
                 ></div>
             )}
-            <Sidebar 
-                activeView={activeView} 
-                setActiveView={setActiveView} 
-                user={currentUser} 
+            <Sidebar
+                activeView={activeView}
+                setActiveView={setActiveView}
+                user={currentUser}
                 onLogout={handleLogout}
                 isSidebarOpen={isSidebarOpen}
                 setIsSidebarOpen={setIsSidebarOpen}

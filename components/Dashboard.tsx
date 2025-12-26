@@ -886,12 +886,12 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
                         <div className="space-y-4">
                             {events.length > 0 ? (
                                 events.map(event => (
-                                    <EventListItem 
+                                    <EventListItem
                                         key={event.id}
                                         event={event}
                                         onEdit={handleOpenEditEventModal}
                                         onDelete={handleDeleteEvent}
-                                        canManage={!!canManage}
+                                        canManage={canManageEvents}
                                         reminder={reminders[event.id]}
                                         onSetReminder={handleSetReminder}
                                     />
@@ -916,7 +916,7 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
                                         announcement={announcement}
                                         onEdit={handleOpenEditAnnouncementModal}
                                         onDelete={handleDeleteAnnouncement}
-                                        canManage={!!canManage}
+                                        canManage={canManageAnnouncements}
                                     />
                                 ))
                             ) : (

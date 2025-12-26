@@ -22,7 +22,7 @@ interface SingerCardProps {
 const SingerCard: React.FC<SingerCardProps> = ({ singer, attendanceSummary }) => {
     const getInitials = (name: string) => {
         const names = name.split(' ');
-        if (names.length === 0) return '';
+        if (names.length === 0) returnki '';
         const firstInitial = names[0]?.[0] || '';
         const lastInitial = names.length > 1 ? names[names.length - 1]?.[0] || '' : '';
         return `${firstInitial}${lastInitial}`.toUpperCase();
