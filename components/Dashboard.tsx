@@ -477,123 +477,224 @@ const BibleVerseCard = () => {
 };
 
 
-const AttendanceSummaryCard = () => {
-    const [attendanceData, setAttendanceData] = useState<{
-        Present: number;
-        Absent: number;
-        Excused: number;
-        totalEvents: number;
-        percentage: number;
-    } | null>(null);
-    const [loading, setLoading] = useState(true);
+
+
+const ContributionAlertCard = ({ contributionData }: { contributionData: ContributionData | null }) => {
+    const [isHovered, setIsHovered] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
 
     useEffect(() => {
-        const fetchAttendanceData = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
+        setIsAnimating(true);
+        const timer = setTimeout(() => setIsAnimating(false), 1000);
+        return () => clearTimeout(timer);
+    }, [contributionData]);
 
-                const response = await fetch('http://localhost:5007/api/attendances/summaries', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const summaries = await response.json();
-
-                    // Calculate overall choir attendance
-                    let totalPresent = 0;
-                    let totalAbsent = 0;
-                    let totalExcused = 0;
-                    let totalEvents = 0;
-                    let memberCount = 0;
-
-                    Object.values(summaries).forEach((memberData: any) => {
-                        totalPresent += memberData.Present || 0;
-                        totalAbsent += memberData.Absent || 0;
-                        totalExcused += memberData.Excused || 0;
-                        totalEvents = Math.max(totalEvents, memberData.totalEvents || 0);
-                        memberCount++;
-                    });
-
-                    // Calculate average attendance percentage
-                    const totalPossible = totalEvents * memberCount;
-                    const totalAttended = totalPresent + totalExcused;
-                    const averagePercentage = totalPossible > 0
-                        ? Math.round((totalAttended / totalPossible) * 100)
-                        : 0;
-
-                    setAttendanceData({
-                        Present: totalPresent,
-                        Absent: totalAbsent,
-                        Excused: totalExcused,
-                        totalEvents: totalEvents,
-                        percentage: averagePercentage
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to fetch attendance data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchAttendanceData();
-    }, []);
-
-    const percentage = attendanceData?.percentage || 0;
-
-    const { colorClass, message } = useMemo(() => {
-        if (percentage >= 85) {
-            return { colorClass: 'text-ahava-purple-light', message: 'Excellent! Keep up the great attendance.' };
-        } else if (percentage >= 70) {
-            return { colorClass: 'text-yellow-400', message: 'Good work. Let\'s aim for higher!' };
-        } else {
-            return { colorClass: 'text-red-400', message: 'Your attendance is low. Please try to improve.' };
-        }
-    }, [percentage]);
-
-    const circumference = 2 * Math.PI * 48; // 2 * pi * r
-    const offset = circumference - (percentage / 100) * circumference;
-
-    if (loading) {
-        return (
-            <div className="bg-ahava-surface p-6 rounded-lg shadow-md flex items-center justify-center h-full border border-ahava-purple-dark">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ahava-purple-light mx-auto mb-2"></div>
-                    <p className="text-sm text-gray-400">Loading attendance data...</p>
-                </div>
-            </div>
-        );
+    if (!contributionData || !contributionData.contribution) {
+        return null;
     }
 
+    const { contribution, userPayment } = contributionData;
+    const isPaid = userPayment?.isPaid || false;
+    const amountPaid = userPayment?.amountPaid || 0;
+    const amountDue = contribution.amountPerPerson;
+    const remainingAmount = amountDue - amountPaid;
+    const endDate = new Date(contribution.endDate);
+    const isOverdue = endDate < new Date();
+
+    const paymentPercentage = amountDue > 0 ? (amountPaid / amountDue) * 100 : 0;
+
+    const getCardConfig = () => {
+        if (isPaid) {
+            return {
+                gradient: 'bg-gradient-to-br from-emerald-900/40 via-green-800/30 to-teal-900/40',
+                border: 'border-emerald-400',
+                icon: '🎉',
+                title: 'PAYMENT COMPLETE',
+                subtitleColor: 'text-emerald-200',
+                accentColor: 'text-emerald-300',
+                bgAccent: 'bg-emerald-500/10',
+                progressColor: 'bg-emerald-400',
+                sparkle: true
+            };
+        } else if (isOverdue) {
+            return {
+                gradient: 'bg-gradient-to-br from-red-900/40 via-rose-800/30 to-pink-900/40',
+                border: 'border-red-400',
+                icon: '🚨',
+                title: 'PAYMENT OVERDUE',
+                subtitleColor: 'text-red-200',
+                accentColor: 'text-red-300',
+                bgAccent: 'bg-red-500/10',
+                progressColor: 'bg-red-400',
+                pulse: true
+            };
+        } else {
+            return {
+                gradient: 'bg-gradient-to-br from-amber-900/40 via-yellow-800/30 to-orange-900/40',
+                border: 'border-amber-400',
+                icon: '⚡',
+                title: 'PAYMENT REQUIRED',
+                subtitleColor: 'text-amber-200',
+                accentColor: 'text-amber-300',
+                bgAccent: 'bg-amber-500/10',
+                progressColor: 'bg-amber-400',
+                glow: true
+            };
+        }
+    };
+
+    const config = getCardConfig();
+
     return (
-        <div className="bg-ahava-surface p-6 rounded-lg shadow-md flex items-center justify-between h-full border border-ahava-purple-dark">
-            <div className="flex-1 pr-4">
-                <h3 className="text-lg font-semibold text-gray-100">Overall Attendance</h3>
-                <p className="text-sm text-gray-400 mb-3">Based on past events</p>
-                <p className={`text-sm font-semibold ${colorClass}`}>{message}</p>
-                {attendanceData && (
-                    <div className="mt-3 text-xs text-gray-500 space-y-1">
-                        <p>Total Events: {attendanceData.totalEvents}</p>
-                        <p>Present: {attendanceData.Present} | Absent: {attendanceData.Absent} | Excused: {attendanceData.Excused}</p>
+        <div
+            className={`p-6 rounded-xl shadow-xl border-2 relative overflow-hidden transform transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl ${
+                config.gradient
+            } ${config.border} ${isAnimating ? 'animate-fadeIn' : ''} ${
+                config.pulse ? 'animate-pulse' : ''
+            } ${config.glow ? 'hover:shadow-amber-500/20' : ''}`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            {/* Animated Background Elements */}
+            <div className="absolute inset-0 opacity-5">
+                <div className={`absolute top-2 right-4 text-4xl animate-bounce ${isHovered ? 'animate-ping' : ''}`}>
+                    {config.icon}
+                </div>
+                <div className="absolute bottom-2 left-4 text-2xl animate-pulse">
+                    💰
+                </div>
+            </div>
+
+            {/* Sparkle Effects for Paid */}
+            {config.sparkle && (
+                <>
+                    <div className="absolute top-4 right-12 text-yellow-300 animate-ping text-lg">✨</div>
+                    <div className="absolute bottom-4 left-12 text-yellow-300 animate-pulse text-lg">⭐</div>
+                </>
+            )}
+
+            <div className="relative z-10">
+                {/* Header Section */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3 flex-1">
+                        <div className={`p-2 rounded-xl transform transition-transform duration-200 ${
+                            config.bgAccent
+                        } ${isHovered ? 'scale-105 rotate-6' : ''}`}>
+                            <BuildingIcon className={`h-6 w-6 ${config.accentColor}`} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                                <h2 className={`text-xl font-bold tracking-wide ${config.subtitleColor}`}>
+                                    {config.icon} {config.title}
+                                </h2>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${
+                                    isPaid
+                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                        : isOverdue
+                                            ? 'bg-red-500/20 text-red-300'
+                                            : 'bg-amber-500/20 text-amber-300'
+                                }`}>
+                                    {isPaid ? '✓' : isOverdue ? '⚠' : '⏰'}
+                                </span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-white leading-tight">
+                                {contribution.title}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Payment Stats - Compact */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="text-center p-3 rounded-lg bg-black/15 backdrop-blur-sm">
+                        <div className="text-2xl font-bold text-white mb-1">
+                            {amountDue.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-gray-400 uppercase">Due</div>
+                    </div>
+
+                    <div className={`text-center p-3 rounded-lg bg-black/15 backdrop-blur-sm ${
+                        isPaid ? 'border border-emerald-400/30' : ''
+                    }`}>
+                        <div className={`text-2xl font-bold mb-1 ${
+                            isPaid ? 'text-emerald-300' : 'text-gray-300'
+                        }`}>
+                            {amountPaid.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-gray-400 uppercase">Paid</div>
+                    </div>
+
+                    {!isPaid && (
+                        <div className={`text-center p-3 rounded-lg bg-black/15 backdrop-blur-sm ${
+                            isOverdue ? 'border border-red-400/30' : 'border border-orange-400/30'
+                        }`}>
+                            <div className={`text-2xl font-bold mb-1 ${
+                                isOverdue ? 'text-red-300' : 'text-orange-300'
+                            }`}>
+                                {remainingAmount.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-400 uppercase">Left</div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Progress Bar - Compact */}
+                {!isPaid && (
+                    <div className="mb-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-300">Progress</span>
+                            <span className={`text-sm font-bold ${
+                                isOverdue ? 'text-red-300' : 'text-amber-300'
+                            }`}>
+                                {paymentPercentage.toFixed(0)}%
+                            </span>
+                        </div>
+                        <div className="relative">
+                            <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                                        config.progressColor
+                                    } ${isHovered ? 'animate-pulse' : ''}`}
+                                    style={{ width: `${Math.min(paymentPercentage, 100)}%` }}
+                                ></div>
+                            </div>
+                        </div>
                     </div>
                 )}
-            </div>
-            <div className="relative flex-shrink-0">
-                <svg className="w-28 h-28 transform -rotate-90">
-                    <circle cx="56" cy="56" r="48" strokeWidth="8" stroke="currentColor" className="text-ahava-purple-dark" fill="transparent" />
-                    <circle
-                        cx="56" cy="56" r="48" strokeWidth="8"
-                        stroke="currentColor" className={colorClass}
-                        fill="transparent"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={offset}
-                        strokeLinecap="round"
-                        style={{ transition: 'stroke-dashoffset 0.6s ease-out' }}
-                    />
-                </svg>
-                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className={`text-3xl font-bold ${colorClass}`}>{percentage}%</span>
+
+                {/* Footer Information - Compact */}
+                <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center space-x-2">
+                        <span className="text-gray-400">📅</span>
+                        <span className={`font-medium ${
+                            isOverdue ? 'text-red-300' : isPaid ? 'text-emerald-300' : 'text-amber-300'
+                        }`}>
+                            {endDate.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric'
+                            })}
+                        </span>
+                    </div>
+
+                    <div className="text-right">
+                        {isPaid && userPayment?.datePaid && (
+                            <div className="text-emerald-300 font-medium">
+                                ✅ Paid
+                            </div>
+                        )}
+
+                        {!isPaid && isOverdue && (
+                            <div className="text-red-300 font-bold animate-pulse">
+                                🚨 {Math.floor((new Date().getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))}d overdue
+                            </div>
+                        )}
+
+                        {!isPaid && !isOverdue && (
+                            <div className="text-amber-300 font-medium">
+                                {Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}d left
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -700,6 +801,21 @@ const CountdownCard = ({ event }: { event?: Event }) => {
 
 
 // --- Main Dashboard Component ---
+interface ContributionData {
+    contribution: {
+        _id: string;
+        title: string;
+        description?: string;
+        amountPerPerson: number;
+        endDate: string;
+    };
+    userPayment: {
+        isPaid: boolean;
+        amountPaid: number;
+        datePaid: string | null;
+    } | null;
+}
+
 interface DashboardProps {
     user: User | null;
     announcements: Announcement[];
@@ -720,6 +836,46 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
     const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
     const [reminders, setReminders] = useState<Record<string, string>>({});
     const timeoutRefs = useRef<Record<string, number>>({});
+
+    // Contribution alert state
+    const [contributionData, setContributionData] = useState<ContributionData | null>(null);
+    const [contributionRefreshKey, setContributionRefreshKey] = useState(0);
+
+    // Fetch active contribution for the user
+    useEffect(() => {
+        if (user) {
+            const fetchContributionData = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
+
+                    const response = await fetch('http://localhost:5007/api/contributions/active', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setContributionData(data || null);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch contribution data:', error);
+                }
+            };
+
+            fetchContributionData();
+        }
+    }, [user, contributionRefreshKey]);
+
+    // Auto-refresh contribution data every 10 seconds to reflect payment changes
+    useEffect(() => {
+        if (user) {
+            const interval = setInterval(() => {
+                setContributionRefreshKey(prev => prev + 1);
+            }, 10000); // 10 seconds
+
+            return () => clearInterval(interval);
+        }
+    }, [user]);
 
     const canManageEvents = user?.role === 'President' || user?.role === 'Advisor';
     const canManageAnnouncements = user?.role === 'President' || user?.role === 'Advisor';
@@ -872,9 +1028,14 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
                 <div className="mb-6">
                     <BibleVerseCard />
                 </div>
-            
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    <AttendanceSummaryCard />
+
+                {contributionData && (
+                    <div className="mb-6">
+                        <ContributionAlertCard contributionData={contributionData} />
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                     <CountdownCard event={nextUpcomingEvent} />
                 </div>
 

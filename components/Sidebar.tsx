@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { View, User } from '../types';
-import { ProfileIcon, DashboardIcon, SingersIcon, SongsIcon, EventsIcon, ChartBarIcon, LogoutIcon, KeyIcon, CardIcon } from './Icons';
+import { ProfileIcon, DashboardIcon, SingersIcon, SongsIcon, EventsIcon, ChartBarIcon, LogoutIcon, KeyIcon, CardIcon, BuildingIcon } from './Icons';
 
 interface SidebarProps {
     activeView: View;
@@ -53,6 +53,9 @@ export const Sidebar = ({ activeView, setActiveView, user, onLogout, isSidebarOp
 
         // Permissions - for President, Secretary, Advisor
         { id: View.PERMISSIONS, label: 'PERMISSION', icon: <CardIcon />, roles: ['President', 'Secretary', 'Advisor'] },
+
+        // Finance - for Secretary only
+        { id: View.FINANCE, label: 'FINANCE', icon: <BuildingIcon />, roles: ['Secretary'] },
 
         // Credentials - for President and Advisor only (administrative access)
         { id: View.CREDENTIALS, label: 'CREDENTIALS', icon: <KeyIcon />, roles: ['President', 'Advisor'] },

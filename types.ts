@@ -7,6 +7,7 @@ export enum View {
   SONGS = 'SONGS',
   CREDENTIALS = 'CREDENTIALS',
   PERMISSIONS = 'PERMISSIONS',
+  FINANCE = 'FINANCE',
 }
 
 export type Role = 'Singer' | 'Advisor' | 'President' | 'Song Conductor' | 'Secretary' | 'Accountant';

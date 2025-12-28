@@ -66,4 +66,20 @@ const songManagerMiddleware = (req, res, next) => {
     next();
 };
 
-module.exports = { authMiddleware, adminMiddleware, songManagerMiddleware };
+const secretaryMiddleware = (req, res, next) => {
+    console.log('Secretary middleware check - User role:', req.user.role, 'User:', req.user.name || req.user.username);
+
+    if (req.user.role !== 'Secretary') {
+        console.log('Access denied - only Secretary role allowed:', req.user.role);
+        return res.status(403).json({
+            message: 'Access denied. Only Secretary role can manage contributions and payments.',
+            requiredRoles: ['Secretary'],
+            userRole: req.user.role
+        });
+    }
+
+    console.log('Secretary access granted for role:', req.user.role);
+    next();
+};
+
+module.exports = { authMiddleware, adminMiddleware, songManagerMiddleware, secretaryMiddleware };
