@@ -621,7 +621,7 @@ const Singers = ({ singers, detailedAttendance, onMenuClick }: SingersProps) => 
 
 export default function App() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [authView, setAuthView] = useState<'login' | 'register' | 'registration-success'>('register');
+    const [authView, setAuthView] = useState<'landing' | 'login' | 'register' | 'registration-success'>('landing');
     const [users, setUsers] = useState<User[]>([]); // Real approved users
     const [pendingUsers, setPendingUsers] = useState<User[]>([]); // Real pending users
     const [events, setEvents] = useState<Event[]>([]); // Events fetched from API
@@ -1168,12 +1168,14 @@ export default function App() {
     };
 
     if (!currentUser) {
-        if (authView === 'login') {
-            return <Login onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} />;
+        if (authView === 'landing') {
+            return <LandingPage onLogin={() => setAuthView('login')} onRegister={() => setAuthView('register')} />;
+        } else if (authView === 'login') {
+            return <Login onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} onBack={() => setAuthView('landing')} />;
         } else if (authView === 'registration-success') {
             return <RegistrationSuccess onSwitchToLogin={() => setAuthView('login')} />;
         } else {
-            return <Register onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />;
+            return <Register onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} onBack={() => setAuthView('landing')} />;
         }
     }
 

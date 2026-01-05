@@ -57,9 +57,10 @@ const RWANDA_DISTRICTS = {
 interface RegisterProps {
     onRegister: (user: User, password: string) => Promise<string | null>;
     onSwitchToLogin: () => void;
+    onBack?: () => void;
 }
 
-export const Register = ({ onRegister, onSwitchToLogin }: RegisterProps) => {
+export const Register = ({ onRegister, onSwitchToLogin, onBack }: RegisterProps) => {
     const [formData, setFormData] = useState<User>({
         id: '',
         username: '',
@@ -186,6 +187,17 @@ export const Register = ({ onRegister, onSwitchToLogin }: RegisterProps) => {
     return (
         <div className="min-h-screen bg-ahava-background flex flex-col justify-center items-center py-12 px-4">
             <div className="w-full max-w-4xl">
+                {onBack && (
+                    <button
+                        onClick={onBack}
+                        className="mb-4 text-ahava-purple-light hover:text-white flex items-center text-sm"
+                    >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back
+                    </button>
+                )}
                  <div className="bg-ahava-surface shadow-lg rounded-xl p-6 sm:p-8 border border-ahava-purple-dark">
                     <div className="text-center mb-8">
                         <h1 className="text-3xl font-bold text-gray-100 tracking-wider">Create Account</h1>

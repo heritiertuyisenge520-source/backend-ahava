@@ -6,9 +6,10 @@ import React, { useState } from 'react';
 interface LoginProps {
     onLogin: (username: string, password: string) => Promise<boolean>;
     onSwitchToRegister: () => void;
+    onBack?: () => void;
 }
 
-export const Login = ({ onLogin, onSwitchToRegister }: LoginProps) => {
+export const Login = ({ onLogin, onSwitchToRegister, onBack }: LoginProps) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -36,6 +37,17 @@ export const Login = ({ onLogin, onSwitchToRegister }: LoginProps) => {
     return (
         <div className="min-h-screen bg-ahava-background flex flex-col justify-center items-center p-4">
             <div className="w-full max-w-md">
+                {onBack && (
+                    <button
+                        onClick={onBack}
+                        className="mb-4 text-ahava-purple-light hover:text-white flex items-center text-sm"
+                    >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back
+                    </button>
+                )}
                 <div className="bg-ahava-surface shadow-lg rounded-xl p-6 sm:p-8 border border-ahava-purple-dark">
                     <div className="text-center mb-8">
                         <h1 className="text-3xl font-bold text-gray-100 tracking-wider">AHAVA CHOIR</h1>
