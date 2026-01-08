@@ -8,7 +8,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { User, Announcement, Event } from '../types';
 import { View } from '../types';
 import { Header } from './Header';
-import { DashboardIcon, ChartBarIcon, ClockIcon, BookIcon, EventsIcon, SongsIcon, SparklesIcon, PaperAirplaneIcon, PencilIcon, BuildingIcon, TrashIcon, BellIcon } from './Icons';
+import { DashboardIcon, ChartBarIcon, ClockIcon, BookIcon, EventsIcon, SongsIcon, SparklesIcon, PaperAirplaneIcon, PencilIcon, BuildingIcon, TrashIcon, BellIcon, SingersIcon, ProfileIcon } from './Icons';
 import { AddEventModal } from './AddEventModal';
 
 
@@ -841,7 +841,15 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
     const [contributionData, setContributionData] = useState<ContributionData | null>(null);
     const [contributionRefreshKey, setContributionRefreshKey] = useState(0);
 
-    // Fetch active contribution for the user
+    // Statistics state
+    const [stats, setStats] = useState({
+        totalMembers: 0,
+        upcomingEvents: 0,
+        activeAnnouncements: 0,
+        attendanceRate: 0
+    });
+
+    // Fetch contribution data (both active and recently closed)
     useEffect(() => {
         if (user) {
             const fetchContributionData = async () => {
@@ -849,13 +857,45 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
                     const token = localStorage.getItem('token');
                     if (!token) return;
 
-                    const response = await fetch('http://localhost:5007/api/contributions/active', {
+                    // Get all contributions and find the most relevant one
+                    const response = await fetch('http://localhost:5007/api/contributions', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
 
                     if (response.ok) {
                         const data = await response.json();
-                        setContributionData(data || null);
+                        let contributions = data.contributions || data;
+
+                        // Find the most relevant contribution to show on dashboard
+                        // Priority: 1) Active contributions, 2) Recently closed contributions
+                        const activeContribution = contributions.find(c => c.status === 'active');
+                        const recentlyClosedContribution = contributions.find(c =>
+                            c.status === 'closed' &&
+                            new Date(c.endDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                        );
+
+                        // Show active contribution if available, otherwise show recently closed
+                        const contributionToShow = activeContribution || recentlyClosedContribution;
+
+                            if (contributionToShow) {
+                                // Get user's payment status for this contribution
+                                const paymentResponse = await fetch(`http://localhost:5007/api/contributions/${contributionToShow._id}/payments`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+
+                                let userPayment = null;
+                                if (paymentResponse.ok) {
+                                    const paymentData = await paymentResponse.json();
+                                    userPayment = paymentData.memberPayments.find(m => m.userId === user.id)?.payment || null;
+                                }
+
+                                setContributionData({
+                                    contribution: contributionToShow,
+                                    userPayment: userPayment
+                                });
+                            } else {
+                                setContributionData(null);
+                            }
                     }
                 } catch (error) {
                     console.error('Failed to fetch contribution data:', error);
@@ -876,6 +916,64 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
             return () => clearInterval(interval);
         }
     }, [user]);
+
+    // Fetch statistics
+    useEffect(() => {
+        if (user) {
+            const fetchStats = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
+
+                    // Fetch total members
+                    const membersRes = await fetch('http://localhost:5007/api/users/singers', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const membersData = membersRes.ok ? await membersRes.json() : [];
+                    
+                    // Calculate upcoming events
+                    const now = new Date();
+                    const upcomingEvents = events.filter(event => 
+                        new Date(`${event.date}T${event.endTime}`) > now
+                    ).length;
+
+                    // Calculate active announcements
+                    const activeAnnouncements = announcements.filter(announcement => {
+                        const startTime = announcement.startTime ? new Date(announcement.startTime) : null;
+                        const endTime = announcement.endTime ? new Date(announcement.endTime) : null;
+                        const isScheduled = startTime && startTime > now;
+                        const isExpired = endTime && endTime < now;
+                        return !isScheduled && !isExpired;
+                    }).length;
+
+                    // Fetch attendance summary for current user
+                    let attendanceRate = 0;
+                    try {
+                        const attendanceRes = await fetch(`http://localhost:5007/api/attendances/summary/${user.id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (attendanceRes.ok) {
+                            const attendanceData = await attendanceRes.json();
+                            attendanceRate = attendanceData.percentage || 0;
+                        }
+                    } catch (err) {
+                        console.error('Failed to fetch attendance:', err);
+                    }
+
+                    setStats({
+                        totalMembers: membersData.length || 0,
+                        upcomingEvents,
+                        activeAnnouncements,
+                        attendanceRate
+                    });
+                } catch (error) {
+                    console.error('Failed to fetch statistics:', error);
+                }
+            };
+
+            fetchStats();
+        }
+    }, [user, events, announcements]);
 
     const canManageEvents = user?.role === 'President' || user?.role === 'Advisor';
     const canManageAnnouncements = user?.role === 'President' || user?.role === 'Advisor';
@@ -985,22 +1083,6 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
         setEditingAnnouncement(null);
     };
 
-    const ActionButtons = () => (
-        <div className="flex flex-col sm:flex-row gap-2">
-            <button 
-                onClick={handleOpenAddEventModal}
-                className="bg-ahava-purple-dark text-white font-semibold py-2 px-4 rounded-lg hover:bg-ahava-purple-medium transition-colors flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                Add Event
-            </button>
-            <button 
-                onClick={handleOpenAddAnnouncementModal}
-                className="bg-ahava-magenta text-white font-semibold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center">
-                <BellIcon className="h-5 w-5 mr-2" />
-                Add Announcement
-            </button>
-        </div>
-    );
 
     // Logic from original Dashboard
     const nextUpcomingEvent = useMemo(() => {
@@ -1021,42 +1103,104 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
                 breadcrumbs={['Dashboard']}
                 title={`Welcome, ${user.name.split(' ')[0]}!`}
                 titleIcon={<DashboardIcon className="h-6 w-6" />}
-                actionButton={(canManageEvents || canManageAnnouncements) ? <ActionButtons /> : undefined}
                 onMenuClick={onMenuClick}
             />
             <div className="p-4 md:p-8">
-                <div className="mb-6">
+                {/* Verse of the Day */}
+                <div className="mb-6 animate-fadeIn">
                     <BibleVerseCard />
                 </div>
 
-                {contributionData && (
-                    <div className="mb-6">
-                        <ContributionAlertCard contributionData={contributionData} />
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* Top Row: Countdown and Financial Info */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    {/* Event Countdown */}
                     <CountdownCard event={nextUpcomingEvent} />
+                    
+                    {/* Financial Info */}
+                    {contributionData ? (
+                        <ContributionAlertCard contributionData={contributionData} />
+                    ) : (
+                        <div className="bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark flex items-center justify-center">
+                            <div className="text-center">
+                                <BuildingIcon className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+                                <p className="text-gray-400">No active contributions</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Merged Events & Announcements Section */}
+                {/* Attendance Summary Card */}
+                <div className="mb-6">
+                    <div className="bg-ahava-surface p-6 rounded-lg shadow-md border border-ahava-purple-dark">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-100 flex items-center">
+                                <ChartBarIcon className="h-6 w-6 mr-2 text-ahava-magenta" />
+                                Attendance Overview
+                            </h2>
+                            <button
+                                onClick={() => setActiveView(View.ATTENDANCE_PERFORMANCE)}
+                                className="text-sm text-ahava-magenta hover:text-ahava-purple-light transition-colors font-medium"
+                            >
+                                View Details →
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="text-center p-4 bg-ahava-background rounded-lg">
+                                <div className="text-3xl font-bold text-green-400 mb-1">{stats.attendanceRate}%</div>
+                                <div className="text-sm text-gray-400">Attendance Rate</div>
+                            </div>
+                            <div className="text-center p-4 bg-ahava-background rounded-lg">
+                                <div className="text-3xl font-bold text-blue-400 mb-1">{stats.upcomingEvents}</div>
+                                <div className="text-sm text-gray-400">Upcoming Events</div>
+                            </div>
+                            <div className="text-center p-4 bg-ahava-background rounded-lg">
+                                <div className="text-3xl font-bold text-purple-400 mb-1">{stats.totalMembers}</div>
+                                <div className="text-sm text-gray-400">Total Members</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Events and Announcements Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Events Column */}
                     <div>
-                        <h2 className="text-xl font-bold text-gray-100 mb-4">Upcoming Events</h2>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-100 flex items-center">
+                                <EventsIcon className="h-6 w-6 mr-2 text-ahava-magenta" />
+                                Upcoming Events
+                            </h2>
+                            {canManageEvents && (
+                                <button
+                                    onClick={handleOpenAddEventModal}
+                                    className="text-sm bg-ahava-purple-dark text-white font-semibold py-1.5 px-3 rounded-lg hover:bg-ahava-purple-medium transition-colors flex items-center"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                    Add Event
+                                </button>
+                            )}
+                        </div>
                         <div className="space-y-4">
                             {events.length > 0 ? (
-                                events.map(event => (
-                                    <EventListItem
-                                        key={event.id}
-                                        event={event}
-                                        onEdit={handleOpenEditEventModal}
-                                        onDelete={handleDeleteEvent}
-                                        canManage={canManageEvents}
-                                        reminder={reminders[event.id]}
-                                        onSetReminder={handleSetReminder}
-                                    />
-                                ))
+                                events
+                                    .filter(event => {
+                                        const eventEnd = new Date(`${event.date}T${event.endTime}`);
+                                        return eventEnd > new Date();
+                                    })
+                                    .slice(0, 5)
+                                    .map(event => (
+                                        <EventListItem
+                                            key={event.id}
+                                            event={event}
+                                            onEdit={handleOpenEditEventModal}
+                                            onDelete={handleDeleteEvent}
+                                            canManage={canManageEvents}
+                                            reminder={reminders[event.id]}
+                                            onSetReminder={handleSetReminder}
+                                        />
+                                    ))
                             ) : (
                                 <div className="bg-ahava-surface text-center p-8 rounded-lg shadow-sm border border-ahava-purple-dark">
                                     <h3 className="text-lg font-semibold text-gray-200">No Events Scheduled</h3>
@@ -1066,20 +1210,44 @@ export const Dashboard = ({ user, announcements, setActiveView, events, onSubmit
                         </div>
                     </div>
 
-                     {/* Announcements Column */}
+                    {/* Announcements Column */}
                     <div>
-                        <h2 className="text-xl font-bold text-gray-100 mb-4">Announcements</h2>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-100 flex items-center">
+                                <BellIcon className="h-6 w-6 mr-2 text-ahava-magenta" />
+                                Announcements
+                            </h2>
+                            {canManageAnnouncements && (
+                                <button
+                                    onClick={handleOpenAddAnnouncementModal}
+                                    className="text-sm bg-ahava-magenta text-white font-semibold py-1.5 px-3 rounded-lg hover:opacity-90 transition-opacity flex items-center"
+                                >
+                                    <BellIcon className="h-4 w-4 mr-1" />
+                                    Add Announcement
+                                </button>
+                            )}
+                        </div>
                         <div className="space-y-4">
                             {announcements.length > 0 ? (
-                                announcements.map(announcement => (
-                                    <AnnouncementListItem
-                                        key={announcement.id}
-                                        announcement={announcement}
-                                        onEdit={handleOpenEditAnnouncementModal}
-                                        onDelete={handleDeleteAnnouncement}
-                                        canManage={canManageAnnouncements}
-                                    />
-                                ))
+                                announcements
+                                    .filter(announcement => {
+                                        const startTime = announcement.startTime ? new Date(announcement.startTime) : null;
+                                        const endTime = announcement.endTime ? new Date(announcement.endTime) : null;
+                                        const now = new Date();
+                                        const isScheduled = startTime && startTime > now;
+                                        const isExpired = endTime && endTime < now;
+                                        return !isScheduled && !isExpired;
+                                    })
+                                    .slice(0, 5)
+                                    .map(announcement => (
+                                        <AnnouncementListItem
+                                            key={announcement.id}
+                                            announcement={announcement}
+                                            onEdit={handleOpenEditAnnouncementModal}
+                                            onDelete={handleDeleteAnnouncement}
+                                            canManage={canManageAnnouncements}
+                                        />
+                                    ))
                             ) : (
                                 <div className="bg-ahava-surface text-center p-8 rounded-lg shadow-sm border border-ahava-purple-dark">
                                     <h3 className="text-lg font-semibold text-gray-200">No Announcements</h3>

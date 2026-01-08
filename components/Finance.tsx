@@ -20,6 +20,7 @@ interface Contribution {
         _id: string;
         name: string;
     };
+    isOverdue?: boolean;
 }
 
 interface PaymentRecord {
@@ -200,11 +201,129 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
 
             if (response.ok) {
                 const data = await response.json();
-                setContributions(data);
+                // Handle both old and new response formats
+                if (data.contributions) {
+                    setContributions(data.contributions);
+
+                    // Show notifications for secretary
+                    if (user.role === 'Secretary') {
+                        if (data.hasOverdueContributions) {
+                            setTimeout(() => {
+                                showDeadlineNotification(data.overdueCount, true);
+                            }, 1000);
+                        }
+
+                        // Check for upcoming deadlines (within 3 days)
+                        const upcomingDeadlines = data.contributions.filter(contribution => {
+                            const endDate = new Date(contribution.endDate);
+                            const currentDate = new Date();
+                            const timeDiff = endDate.getTime() - currentDate.getTime();
+                            const daysDiff = timeDiff / (1000 * 3600 * 24);
+                            return daysDiff > 0 && daysDiff <= 3 && contribution.status === 'active';
+                        });
+
+                        if (upcomingDeadlines.length > 0) {
+                            setTimeout(() => {
+                                showUpcomingDeadlineNotification(upcomingDeadlines.length);
+                            }, 1500);
+                        }
+                    }
+                } else {
+                    setContributions(data);
+                }
             }
         } catch (error) {
             console.error('Failed to fetch contributions:', error);
         }
+    };
+
+    // Show deadline reached notification
+    const showDeadlineNotification = (count: number, isOverdue: boolean) => {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg border-l-4';
+        notification.style.zIndex = '1000';
+
+        if (isOverdue) {
+            notification.className += ' bg-red-50 border-red-500';
+            notification.innerHTML = `
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-red-800">
+                            ⚠️ PAYMENT DEADLINE REACHED
+                        </p>
+                        <p class="text-sm text-red-700 mt-1">
+                            ${count} contribution(s) have passed their deadline.
+                        </p>
+                        <div class="mt-3 flex space-x-2">
+                            <button onclick="this.parentElement.parentElement.parentElement.parentElement.remove()" class="px-3 py-1 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                Dismiss
+                            </button>
+                            <button onclick="window.location.href='#/finance?tab=tracking'" class="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                View Contributions
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="ml-auto -mx-1.5 -my-1.5 bg-red-50 text-red-500 rounded-lg focus:ring-2 focus:ring-red-400 p-1.5 hover:bg-red-200 inline-flex h-8 w-8">
+                        <span class="sr-only">Dismiss</span>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        } else {
+            notification.className += ' bg-yellow-50 border-yellow-500';
+            notification.innerHTML = `
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.01-1.742 3.01H4.42c-1.532 0-2.493-1.676-1.742-3.01l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-yellow-800">
+                            🔔 UPCOMING PAYMENT DEADLINE
+                        </p>
+                        <p class="text-sm text-yellow-700 mt-1">
+                            ${count} contribution(s) deadline approaching soon.
+                        </p>
+                        <div class="mt-3 flex space-x-2">
+                            <button onclick="this.parentElement.parentElement.parentElement.parentElement.remove()" class="px-3 py-1 text-sm font-medium text-yellow-700 bg-yellow-100 rounded-md hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                                Dismiss
+                            </button>
+                            <button onclick="window.location.href='#/finance?tab=tracking'" class="px-3 py-1 text-sm font-medium text-white bg-yellow-600 rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                                View Contributions
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="ml-auto -mx-1.5 -my-1.5 bg-yellow-50 text-yellow-500 rounded-lg focus:ring-2 focus:ring-yellow-400 p-1.5 hover:bg-yellow-200 inline-flex h-8 w-8">
+                        <span class="sr-only">Dismiss</span>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }
+
+        document.body.appendChild(notification);
+
+        // Auto-dismiss after 10 seconds
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                notification.remove();
+            }
+        }, 10000);
+    };
+
+    // Show upcoming deadline notification
+    const showUpcomingDeadlineNotification = (count: number) => {
+        showDeadlineNotification(count, false);
     };
 
     // Fetch member payments for a contribution
@@ -520,11 +639,33 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
                         <div className="bg-ahava-surface rounded-lg shadow-md p-6 border border-ahava-purple-dark">
                             <h3 className="text-xl font-bold text-gray-100 mb-4">Select Contribution to Track</h3>
 
-                            {contributions.length === 0 ? (
-                                <p className="text-gray-400">No contributions found. Create one first.</p>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {contributions.map(contribution => (
+                            {(() => {
+                                // Filter contributions based on role
+                                const filteredContributions = contributions.filter(contribution => {
+                                    // For Secretary role, only show ongoing activities (not outdated)
+                                    if (user.role === 'Secretary') {
+                                        const currentDate = new Date();
+                                        currentDate.setHours(0, 0, 0, 0); // Reset time to compare dates only
+                                        const endDate = new Date(contribution.endDate);
+                                        endDate.setHours(0, 0, 0, 0);
+                                        // Show only if endDate is today or in the future (ongoing)
+                                        return endDate >= currentDate;
+                                    }
+                                    // For other roles, show all contributions
+                                    return true;
+                                });
+
+                                if (filteredContributions.length === 0) {
+                                    if (contributions.length === 0) {
+                                        return <p className="text-gray-400">No contributions found. Create one first.</p>;
+                                    } else {
+                                        return <p className="text-gray-400">No ongoing contributions found. All contributions have ended.</p>;
+                                    }
+                                }
+
+                                return (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {filteredContributions.map(contribution => (
                                         <button
                                             key={contribution._id}
                                             onClick={() => fetchMemberPayments(contribution._id)}
@@ -550,8 +691,9 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
                                             </span>
                                         </button>
                                     ))}
-                                </div>
-                            )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Member Payments */}
@@ -600,7 +742,7 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
                                         }}
                                         className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
                                     >
-                                        <span>📥 Download Excel</span>
+                                        <span>📥Download Excel</span>
                                     </button>
                                 </div>
 

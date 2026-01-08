@@ -214,7 +214,28 @@ const getContributions = async (req, res) => {
         const contributions = await Contribution.find({})
             .populate('createdBy', 'name')
             .sort({ createdAt: -1 });
-        res.json(contributions);
+
+        // Check for overdue contributions and notify secretary
+        const currentDate = new Date();
+        const overdueContributions = contributions.filter(contribution => {
+            const endDate = new Date(contribution.endDate);
+            return endDate < currentDate && contribution.status === 'active';
+        });
+
+        // Add overdue flag to contributions
+        const contributionsWithStatus = contributions.map(contribution => {
+            const endDate = new Date(contribution.endDate);
+            return {
+                ...contribution._doc,
+                isOverdue: endDate < currentDate && contribution.status === 'active'
+            };
+        });
+
+        res.json({
+            contributions: contributionsWithStatus,
+            hasOverdueContributions: overdueContributions.length > 0,
+            overdueCount: overdueContributions.length
+        });
     } catch (error) {
         console.error('Get contributions error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -226,6 +247,19 @@ const getContributions = async (req, res) => {
 // @access  Private
 const getActiveContribution = async (req, res) => {
     try {
+        // First check if there are any overdue contributions that need to be auto-closed
+        const currentDate = new Date();
+        const overdueContributions = await Contribution.find({
+            status: 'active',
+            endDate: { $lt: currentDate }
+        });
+
+        // Auto-close overdue contributions (but don't await to avoid delaying response)
+        overdueContributions.forEach(async (contribution) => {
+            contribution.status = 'closed';
+            await contribution.save();
+        });
+
         const activeContribution = await Contribution.findOne({ status: 'active' })
             .populate('createdBy', 'name')
             .sort({ createdAt: -1 });
@@ -234,6 +268,10 @@ const getActiveContribution = async (req, res) => {
             return res.json(null);
         }
 
+        // Check if contribution is overdue (shouldn't happen since we auto-close, but check anyway)
+        const endDate = new Date(activeContribution.endDate);
+        const isOverdue = endDate < currentDate;
+
         // Get user's payment status for this contribution
         const userPayment = await Payment.findOne({
             contributionId: activeContribution._id,
@@ -241,11 +279,116 @@ const getActiveContribution = async (req, res) => {
         });
 
         res.json({
-            contribution: activeContribution,
+            contribution: {
+                ...activeContribution._doc,
+                isOverdue: isOverdue
+            },
             userPayment: userPayment || null
         });
     } catch (error) {
         console.error('Get active contribution error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// @desc    Close an overdue contribution
+// @route   PUT /api/contributions/:contributionId/close
+// @access  Private (Secretary only)
+const closeContribution = async (req, res) => {
+    try {
+        const { contributionId } = req.params;
+
+        // Find the contribution
+        const contribution = await Contribution.findById(contributionId);
+        if (!contribution) {
+            return res.status(404).json({ message: 'Contribution not found' });
+        }
+
+        // Check if contribution is already closed
+        if (contribution.status === 'closed') {
+            return res.status(400).json({ message: 'Contribution is already closed' });
+        }
+
+        // Check if contribution is overdue
+        const currentDate = new Date();
+        const endDate = new Date(contribution.endDate);
+        if (endDate >= currentDate) {
+            return res.status(400).json({ message: 'Contribution is not yet overdue' });
+        }
+
+        // Close the contribution
+        contribution.status = 'closed';
+        await contribution.save();
+
+        res.json({ message: 'Contribution closed successfully', contribution });
+    } catch (error) {
+        console.error('Close contribution error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// @desc    Delete overdue contribution and its payments (permanent deletion)
+// @route   DELETE /api/contributions/:contributionId/permanent-delete
+// @access  Private (Secretary only)
+const deleteOverdueContributionPermanently = async (req, res) => {
+    try {
+        const { contributionId } = req.params;
+
+        // Find the contribution
+        const contribution = await Contribution.findById(contributionId);
+        if (!contribution) {
+            return res.status(404).json({ message: 'Contribution not found' });
+        }
+
+        // Check if contribution is overdue
+        const currentDate = new Date();
+        const endDate = new Date(contribution.endDate);
+        if (endDate >= currentDate) {
+            return res.status(400).json({ message: 'Cannot delete contribution that is not yet overdue' });
+        }
+
+        // Delete all payments associated with this contribution
+        await Payment.deleteMany({ contributionId: contribution._id });
+
+        // Delete the contribution
+        await Contribution.findByIdAndDelete(contributionId);
+
+        res.json({ message: 'Contribution and all associated payments deleted permanently' });
+    } catch (error) {
+        console.error('Delete contribution error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// @desc    Clean up all overdue contributions and payments
+// @route   DELETE /api/contributions/cleanup-overdue
+// @access  Private (Secretary only)
+const cleanupOverdueContributions = async (req, res) => {
+    try {
+        const currentDate = new Date();
+
+        // Find all overdue contributions
+        const overdueContributions = await Contribution.find({
+            endDate: { $lt: currentDate }
+        });
+
+        if (overdueContributions.length === 0) {
+            return res.json({ message: 'No overdue contributions found', deletedCount: 0 });
+        }
+
+        // Delete all payments for these contributions
+        const contributionIds = overdueContributions.map(c => c._id);
+        await Payment.deleteMany({ contributionId: { $in: contributionIds } });
+
+        // Delete all overdue contributions
+        await Contribution.deleteMany({ _id: { $in: contributionIds } });
+
+        res.json({
+            message: 'Overdue contributions cleanup completed',
+            deletedCount: overdueContributions.length
+        });
+    } catch (error) {
+        console.error('Cleanup overdue contributions error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
@@ -380,5 +523,8 @@ module.exports = {
     getMemberPayments,
     getContributions,
     getActiveContribution,
-    exportPaymentsToExcel
+    exportPaymentsToExcel,
+    closeContribution,
+    deleteOverdueContributionPermanently,
+    cleanupOverdueContributions
 };

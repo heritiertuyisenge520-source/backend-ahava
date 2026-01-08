@@ -12,6 +12,7 @@ import { Register } from './components/Register';
 import { Credentials } from './components/Credentials';
 import { Permissions } from './components/Permissions';
 import { Finance } from './components/Finance';
+import { Members } from './components/Members';
 import LandingPage from './components/LandingPage';
 
 // --- Registration Success Component ---
@@ -1221,6 +1222,8 @@ export default function App() {
                 return <Permissions user={currentUser} {...commonProps} />;
             case View.FINANCE:
                 return <Finance user={currentUser} {...commonProps} />;
+            case View.MEMBERS:
+                return <Members user={currentUser} {...commonProps} />;
             case View.CREDENTIALS:
                 return <Credentials
                     users={users}

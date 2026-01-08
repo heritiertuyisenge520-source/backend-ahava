@@ -7,7 +7,10 @@ const {
     getMemberPayments,
     getContributions,
     getActiveContribution,
-    exportPaymentsToExcel
+    exportPaymentsToExcel,
+    closeContribution,
+    deleteOverdueContributionPermanently,
+    cleanupOverdueContributions
 } = require('../controllers/contributionController');
 const { authMiddleware, adminMiddleware, secretaryMiddleware } = require('../middleware/authMiddleware');
 
@@ -34,5 +37,14 @@ router.put('/:contributionId/payments/:userId/mark-paid', secretaryMiddleware, m
 
 // Export payments to Excel (Secretary only)
 router.get('/:contributionId/payments/export', secretaryMiddleware, exportPaymentsToExcel);
+
+// Close an overdue contribution (Secretary only)
+router.put('/:contributionId/close', secretaryMiddleware, closeContribution);
+
+// Delete overdue contribution and its payments permanently (Secretary only)
+router.delete('/:contributionId/permanent-delete', secretaryMiddleware, deleteOverdueContributionPermanently);
+
+// Clean up all overdue contributions and payments (Secretary only)
+router.delete('/cleanup-overdue', secretaryMiddleware, cleanupOverdueContributions);
 
 module.exports = router;
