@@ -180,6 +180,11 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
     const [selectedMemberForPayment, setSelectedMemberForPayment] = useState<MemberPayment | null>(null);
     const [paymentLoading, setPaymentLoading] = useState(false);
 
+    // Track notified contributions to prevent duplicate notifications
+    const notifiedOverdueContributions = useRef<Set<string>>(new Set());
+    const notifiedUpcomingContributions = useRef<Set<string>>(new Set());
+    const isCreatingContribution = useRef<boolean>(false);
+
     // Form states
     const [formData, setFormData] = useState({
         title: '',
@@ -205,16 +210,33 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
                 if (data.contributions) {
                     setContributions(data.contributions);
 
-                    // Show notifications for secretary
-                    if (user.role === 'Secretary') {
-                        if (data.hasOverdueContributions) {
+                    // Show notifications for secretary (only if not creating a new contribution)
+                    if (user.role === 'Secretary' && !isCreatingContribution.current) {
+                        // Find overdue contributions
+                        const overdueContributions = data.contributions.filter((contribution: Contribution) => {
+                            const endDate = new Date(contribution.endDate);
+                            const currentDate = new Date();
+                            return endDate < currentDate && contribution.status === 'active';
+                        });
+
+                        // Only show notification for NEW overdue contributions
+                        const newOverdueContributions = overdueContributions.filter(
+                            (contribution: Contribution) => !notifiedOverdueContributions.current.has(contribution._id)
+                        );
+
+                        if (newOverdueContributions.length > 0) {
+                            // Add new overdue contributions to the notified set
+                            newOverdueContributions.forEach((contribution: Contribution) => {
+                                notifiedOverdueContributions.current.add(contribution._id);
+                            });
+
                             setTimeout(() => {
-                                showDeadlineNotification(data.overdueCount, true);
+                                showDeadlineNotification(newOverdueContributions.length, true);
                             }, 1000);
                         }
 
                         // Check for upcoming deadlines (within 3 days)
-                        const upcomingDeadlines = data.contributions.filter(contribution => {
+                        const upcomingDeadlines = data.contributions.filter((contribution: Contribution) => {
                             const endDate = new Date(contribution.endDate);
                             const currentDate = new Date();
                             const timeDiff = endDate.getTime() - currentDate.getTime();
@@ -222,9 +244,19 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
                             return daysDiff > 0 && daysDiff <= 3 && contribution.status === 'active';
                         });
 
-                        if (upcomingDeadlines.length > 0) {
+                        // Only show notification for NEW upcoming contributions
+                        const newUpcomingDeadlines = upcomingDeadlines.filter(
+                            (contribution: Contribution) => !notifiedUpcomingContributions.current.has(contribution._id)
+                        );
+
+                        if (newUpcomingDeadlines.length > 0) {
+                            // Add new upcoming contributions to the notified set
+                            newUpcomingDeadlines.forEach((contribution: Contribution) => {
+                                notifiedUpcomingContributions.current.add(contribution._id);
+                            });
+
                             setTimeout(() => {
-                                showUpcomingDeadlineNotification(upcomingDeadlines.length);
+                                showUpcomingDeadlineNotification(newUpcomingDeadlines.length);
                             }, 1500);
                         }
                     }
@@ -358,6 +390,7 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        isCreatingContribution.current = true;
 
         try {
             const token = localStorage.getItem('token');
@@ -383,13 +416,20 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
                 setContributions(prev => [newContribution, ...prev]);
                 setFormData({ title: '', description: '', amountPerPerson: '', startDate: '', endDate: '' });
                 alert('Contribution created successfully!');
+                
+                // Reset the flag after a short delay to allow state to update
+                setTimeout(() => {
+                    isCreatingContribution.current = false;
+                }, 2000);
             } else {
                 const errorData = await response.json();
                 setError(errorData.message || 'Failed to create contribution');
+                isCreatingContribution.current = false;
             }
         } catch (error) {
             console.error('Failed to create contribution:', error);
             setError('Network error');
+            isCreatingContribution.current = false;
         } finally {
             setLoading(false);
         }

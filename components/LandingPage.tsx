@@ -52,6 +52,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
         return () => window.removeEventListener('mousemove', handleMouseMove);
     }, []);
 
+
     // Interactive musical notes component
     const AnimatedNote = ({ delay, position, interactive = false }: {
         delay: number;
@@ -133,6 +134,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
             />
         );
     };
+
 
     return (
         <div
@@ -385,37 +387,105 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                                             href="https://facebook.com/ahavauniversitychoir"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="group p-3 rounded-full bg-ahava-surface/50 hover:bg-ahava-purple-dark border border-ahava-purple-medium/50 transition-all duration-300 transform hover:scale-110 hover:shadow-lg hover:-translate-y-1"
+                                            className="group relative p-3 rounded-full bg-ahava-surface/50 hover:bg-blue-500/20 border border-ahava-purple-medium/50 hover:border-blue-400 transition-all duration-300 transform hover:scale-125 hover:shadow-2xl hover:shadow-blue-500/50 hover:-translate-y-2 active:scale-110"
                                             aria-label="Follow us on Facebook"
+                                            onClick={(e) => {
+                                                // Create ripple effect
+                                                const ripple = document.createElement('div');
+                                                ripple.className = 'absolute inset-0 rounded-full bg-blue-400/30 animate-ping';
+                                                e.currentTarget.appendChild(ripple);
+                                                setTimeout(() => ripple.remove(), 600);
+                                                
+                                                // Create sparkle effect
+                                                const sparkle = document.createElement('div');
+                                                sparkle.className = 'absolute text-2xl animate-bounce pointer-events-none';
+                                                sparkle.textContent = '✨';
+                                                sparkle.style.left = `${mousePosition.x}px`;
+                                                sparkle.style.top = `${mousePosition.y}px`;
+                                                containerRef.current?.appendChild(sparkle);
+                                                setTimeout(() => sparkle.remove(), 1000);
+                                            }}
                                         >
-                                            <FacebookIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
+                                            <FacebookIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
+                                            <div className="absolute inset-0 rounded-full bg-blue-400/0 group-hover:bg-blue-400/10 transition-all duration-300 blur-xl"></div>
                                         </a>
                                         <a
                                             href="https://instagram.com/ahavauniversitychoir"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="group p-3 rounded-full bg-ahava-surface/50 hover:bg-ahava-purple-dark border border-ahava-purple-medium/50 transition-all duration-300 transform hover:scale-110 hover:shadow-lg hover:-translate-y-1"
+                                            className="group relative p-3 rounded-full bg-ahava-surface/50 hover:bg-pink-500/20 border border-ahava-purple-medium/50 hover:border-pink-400 transition-all duration-300 transform hover:scale-125 hover:shadow-2xl hover:shadow-pink-500/50 hover:-translate-y-2 active:scale-110"
                                             aria-label="Follow us on Instagram"
+                                            onClick={(e) => {
+                                                // Create ripple effect
+                                                const ripple = document.createElement('div');
+                                                ripple.className = 'absolute inset-0 rounded-full bg-pink-400/30 animate-ping';
+                                                e.currentTarget.appendChild(ripple);
+                                                setTimeout(() => ripple.remove(), 600);
+                                                
+                                                // Create sparkle effect
+                                                const sparkle = document.createElement('div');
+                                                sparkle.className = 'absolute text-2xl animate-bounce pointer-events-none';
+                                                sparkle.textContent = '💖';
+                                                sparkle.style.left = `${mousePosition.x}px`;
+                                                sparkle.style.top = `${mousePosition.y}px`;
+                                                containerRef.current?.appendChild(sparkle);
+                                                setTimeout(() => sparkle.remove(), 1000);
+                                            }}
                                         >
-                                            <InstagramIcon className="w-5 h-5 text-gray-400 group-hover:text-pink-400 transition-colors" />
+                                            <InstagramIcon className="w-5 h-5 text-gray-400 group-hover:text-pink-400 transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
+                                            <div className="absolute inset-0 rounded-full bg-pink-400/0 group-hover:bg-pink-400/10 transition-all duration-300 blur-xl"></div>
                                         </a>
                                         <a
                                             href="https://twitter.com/ahavauchoir"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="group p-3 rounded-full bg-ahava-surface/50 hover:bg-ahava-purple-dark border border-ahava-purple-medium/50 transition-all duration-300 transform hover:scale-110 hover:shadow-lg hover:-translate-y-1"
+                                            className="group relative p-3 rounded-full bg-ahava-surface/50 hover:bg-cyan-500/20 border border-ahava-purple-medium/50 hover:border-cyan-400 transition-all duration-300 transform hover:scale-125 hover:shadow-2xl hover:shadow-cyan-500/50 hover:-translate-y-2 active:scale-110"
                                             aria-label="Follow us on Twitter"
+                                            onClick={(e) => {
+                                                // Create ripple effect
+                                                const ripple = document.createElement('div');
+                                                ripple.className = 'absolute inset-0 rounded-full bg-cyan-400/30 animate-ping';
+                                                e.currentTarget.appendChild(ripple);
+                                                setTimeout(() => ripple.remove(), 600);
+                                                
+                                                // Create sparkle effect
+                                                const sparkle = document.createElement('div');
+                                                sparkle.className = 'absolute text-2xl animate-bounce pointer-events-none';
+                                                sparkle.textContent = '🐦';
+                                                sparkle.style.left = `${mousePosition.x}px`;
+                                                sparkle.style.top = `${mousePosition.y}px`;
+                                                containerRef.current?.appendChild(sparkle);
+                                                setTimeout(() => sparkle.remove(), 1000);
+                                            }}
                                         >
-                                            <TwitterIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-300 transition-colors" />
+                                            <TwitterIcon className="w-5 h-5 text-gray-400 group-hover:text-cyan-400 transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
+                                            <div className="absolute inset-0 rounded-full bg-cyan-400/0 group-hover:bg-cyan-400/10 transition-all duration-300 blur-xl"></div>
                                         </a>
                                         <a
                                             href="https://youtube.com/@ahavauniversitychoir"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="group p-3 rounded-full bg-ahava-surface/50 hover:bg-ahava-purple-dark border border-ahava-purple-medium/50 transition-all duration-300 transform hover:scale-110 hover:shadow-lg hover:-translate-y-1"
+                                            className="group relative p-3 rounded-full bg-ahava-surface/50 hover:bg-red-500/20 border border-ahava-purple-medium/50 hover:border-red-400 transition-all duration-300 transform hover:scale-125 hover:shadow-2xl hover:shadow-red-500/50 hover:-translate-y-2 active:scale-110"
                                             aria-label="Subscribe to our YouTube channel"
+                                            onClick={(e) => {
+                                                // Create ripple effect
+                                                const ripple = document.createElement('div');
+                                                ripple.className = 'absolute inset-0 rounded-full bg-red-400/30 animate-ping';
+                                                e.currentTarget.appendChild(ripple);
+                                                setTimeout(() => ripple.remove(), 600);
+                                                
+                                                // Create sparkle effect
+                                                const sparkle = document.createElement('div');
+                                                sparkle.className = 'absolute text-2xl animate-bounce pointer-events-none';
+                                                sparkle.textContent = '▶️';
+                                                sparkle.style.left = `${mousePosition.x}px`;
+                                                sparkle.style.top = `${mousePosition.y}px`;
+                                                containerRef.current?.appendChild(sparkle);
+                                                setTimeout(() => sparkle.remove(), 1000);
+                                            }}
                                         >
-                                            <YoutubeIcon className="w-5 h-5 text-gray-400 group-hover:text-red-400 transition-colors" />
+                                            <YoutubeIcon className="w-5 h-5 text-gray-400 group-hover:text-red-400 transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
+                                            <div className="absolute inset-0 rounded-full bg-red-400/0 group-hover:bg-red-400/10 transition-all duration-300 blur-xl"></div>
                                         </a>
                                     </div>
                                 </div>
