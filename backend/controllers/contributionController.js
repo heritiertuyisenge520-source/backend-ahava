@@ -1,6 +1,7 @@
 const Contribution = require('../models/Contribution');
 const Payment = require('../models/Payment');
 const User = require('../models/User');
+const ExcelJS = require('exceljs');
 
 // @desc    Create a new contribution
 // @route   POST /api/contributions
@@ -249,11 +250,135 @@ const getActiveContribution = async (req, res) => {
     }
 };
 
+// @desc    Export payments to Excel for a specific contribution
+// @route   GET /api/contributions/:contributionId/payments/export
+// @access  Private (Secretary only)
+const exportPaymentsToExcel = async (req, res) => {
+    try {
+        const { contributionId } = req.params;
+
+        // Get the contribution
+        const contribution = await Contribution.findById(contributionId);
+        if (!contribution) {
+            return res.status(404).json({ message: 'Contribution not found' });
+        }
+
+        // Get all approved users
+        const approvedUsers = await User.find({ status: 'approved' }).select('_id name email').sort({ name: 1 });
+
+        // Get all payments for this contribution
+        const payments = await Payment.find({ contributionId }).populate('userId', 'name email');
+
+        // Create a map of payments by userId
+        const paymentMap = {};
+        payments.forEach(payment => {
+            paymentMap[payment.userId._id.toString()] = payment;
+        });
+
+        // Combine users with their payment status
+        const memberPayments = approvedUsers.map(user => ({
+            userId: user._id,
+            name: user.name,
+            email: user.email,
+            payment: paymentMap[user._id.toString()] || null,
+            isPaid: paymentMap[user._id.toString()]?.isPaid || false,
+            amountPaid: paymentMap[user._id.toString()]?.amountPaid || 0,
+            datePaid: paymentMap[user._id.toString()]?.datePaid || null,
+            paymentHistory: paymentMap[user._id.toString()]?.paymentHistory || []
+        }));
+
+        // Create a new Excel workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Payments');
+
+        // Add headers
+        worksheet.columns = [
+            { header: 'Name', key: 'name', width: 25 },
+            { header: 'Email', key: 'email', width: 30 },
+            { header: 'Status', key: 'status', width: 15 },
+            { header: 'Amount Paid', key: 'amountPaid', width: 15 },
+            { header: 'Total Required', key: 'totalRequired', width: 15 },
+            { header: 'Remaining', key: 'remaining', width: 15 },
+            { header: 'Payment Date', key: 'paymentDate', width: 20 },
+            { header: 'Payment History', key: 'paymentHistory', width: 50 }
+        ];
+
+        // Add data rows
+        memberPayments.forEach(member => {
+            const remainingAmount = contribution.amountPerPerson - member.amountPaid;
+            const paymentHistoryText = member.paymentHistory.map(record =>
+                `${new Date(record.datePaid).toLocaleDateString()}: ${record.amount.toLocaleString()} RWF${record.notes ? ` (${record.notes})` : ''}`
+            ).join(' | ');
+
+            worksheet.addRow({
+                name: member.name,
+                email: member.email,
+                status: member.isPaid ? 'Fully Paid' : 'Pending',
+                amountPaid: member.amountPaid.toLocaleString(),
+                totalRequired: contribution.amountPerPerson.toLocaleString(),
+                remaining: remainingAmount.toLocaleString(),
+                paymentDate: member.isPaid && member.paymentHistory.length > 0
+                    ? new Date(member.paymentHistory[member.paymentHistory.length - 1].datePaid).toLocaleDateString()
+                    : '',
+                paymentHistory: paymentHistoryText
+            });
+        });
+
+        // Style the header row
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4A2C6D' } // Ahava purple color
+        };
+
+        // Style data rows based on payment status
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (rowNumber > 1) { // Skip header row
+                const statusCell = row.getCell('status');
+                if (statusCell.value === 'Fully Paid') {
+                    row.eachCell(cell => {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FF2E5B38' } // Green for paid
+                        };
+                        cell.font = { color: { argb: 'FFFFFFFF' } };
+                    });
+                } else {
+                    row.eachCell(cell => {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FF6B2C2C' } // Red for pending
+                        };
+                        cell.font = { color: { argb: 'FFFFFFFF' } };
+                    });
+                }
+            }
+        });
+
+        // Set the response headers for Excel download
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Payments_${contribution.title.replace(/\s+/g, '_')}.xlsx"`);
+
+        // Write the workbook to the response
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (error) {
+        console.error('Export payments error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
 module.exports = {
     createContribution,
     addPayment,
     markAsPaid,
     getMemberPayments,
     getContributions,
-    getActiveContribution
+    getActiveContribution,
+    exportPaymentsToExcel
 };

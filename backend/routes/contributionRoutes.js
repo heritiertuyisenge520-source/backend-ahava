@@ -6,7 +6,8 @@ const {
     markAsPaid,
     getMemberPayments,
     getContributions,
-    getActiveContribution
+    getActiveContribution,
+    exportPaymentsToExcel
 } = require('../controllers/contributionController');
 const { authMiddleware, adminMiddleware, secretaryMiddleware } = require('../middleware/authMiddleware');
 
@@ -30,5 +31,8 @@ router.post('/:contributionId/payments/:userId', secretaryMiddleware, addPayment
 
 // Mark payment as paid (Secretary only)
 router.put('/:contributionId/payments/:userId/mark-paid', secretaryMiddleware, markAsPaid);
+
+// Export payments to Excel (Secretary only)
+router.get('/:contributionId/payments/export', secretaryMiddleware, exportPaymentsToExcel);
 
 module.exports = router;

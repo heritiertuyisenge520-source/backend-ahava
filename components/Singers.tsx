@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { Header } from './Header';
@@ -65,7 +62,6 @@ const SingerCard: React.FC<SingerCardProps> = ({ singer }) => {
         </div>
     );
 };
-
 
 const Singers = ({ singers, onMenuClick, user }: { singers: User[], onMenuClick?: () => void, user?: User }) => {
     return (

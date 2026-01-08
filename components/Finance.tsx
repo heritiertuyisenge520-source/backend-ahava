@@ -557,9 +557,52 @@ export const Finance = ({ user, onMenuClick }: FinanceProps) => {
                         {/* Member Payments */}
                         {selectedContribution && (
                             <div className="bg-ahava-surface rounded-lg shadow-md p-6 border border-ahava-purple-dark">
-                                <h3 className="text-xl font-bold text-gray-100 mb-4">
-                                    Payment Status for "{selectedContribution.title}"
-                                </h3>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xl font-bold text-gray-100">
+                                        Payment Status for "{selectedContribution.title}"
+                                    </h3>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const token = localStorage.getItem('token');
+                                                if (!token) {
+                                                    alert('Authentication required. Please log in again.');
+                                                    return;
+                                                }
+
+                                                const response = await fetch(`http://localhost:5007/api/contributions/${selectedContribution._id}/payments/export`, {
+                                                    headers: {
+                                                        'Authorization': `Bearer ${token}`
+                                                    }
+                                                });
+
+                                                if (response.ok) {
+                                                    const blob = await response.blob();
+                                                    const url = window.URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = `Payments_${selectedContribution.title.replace(/\s+/g, '_')}.xlsx`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
+                                                    window.URL.revokeObjectURL(url);
+                                                } else if (response.status === 403) {
+                                                    const errorData = await response.json();
+                                                    alert(`Access denied: ${errorData.message}\n\nOnly Secretary role can download payment reports.`);
+                                                } else {
+                                                    const errorData = await response.json();
+                                                    alert(`Failed to download payments: ${errorData.message || 'Unknown error'}`);
+                                                }
+                                            } catch (error) {
+                                                console.error('Failed to download payments:', error);
+                                                alert('Network error. Please check your connection and try again.');
+                                            }
+                                        }}
+                                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                                    >
+                                        <span>📥 Download Excel</span>
+                                    </button>
+                                </div>
 
                                 {loading ? (
                                     <p className="text-center text-gray-400">Loading...</p>
