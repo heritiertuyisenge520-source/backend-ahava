@@ -26,6 +26,8 @@ export interface User {
     placeOfResidence: string;
     yearOfStudy: 'Year 1' | 'Year 2' | 'Year 3' | 'Year 4' | 'Year 5' | '';
     university: 'University of Rwanda' | 'East African' | '';
+    college?: string;
+    program?: string;
     gender: 'Male' | 'Female' | '';
     maritalStatus: 'Single' | 'Married' | '';
     homeParishName: string;
@@ -41,6 +43,9 @@ export interface User {
     district?: string;
     sector?: string;
     cell?: string;
+    region?: string; // Region (ururembo)
+    parish?: string; // Parish
+    itorero?: string; // Itorero
 }
 
 export interface Event {
